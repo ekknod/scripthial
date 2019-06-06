@@ -11,7 +11,7 @@ libc = CDLL('libc.so.6')
 bone_list = [5, 4, 3, 0, 7, 8]
 head_only = False
 aim_smooth = 5
-aim_fov = 0.8 / 180.0
+aim_fov = 1.0 / 180.0
 aim_key = 107       # mouse 1
 trigger_key = 111   # mouse5
 quit_key = 72       # insert
@@ -505,7 +505,7 @@ class Math:
 
     @staticmethod
     def vec_normalize(vec):
-        radius = 1.0 / math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) + 1.192092896e-07
+        radius = 1.0 / (math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) + 1.192092896e-07)
         vec.x *= radius
         vec.y *= radius
         vec.z *= radius
