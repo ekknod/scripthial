@@ -673,7 +673,6 @@ if __name__ == "__main__":
         vt = InterfaceList()
         nv = NetVarList()
         sensitivity = ConVar('sensitivity')
-        engine_base = mem.read_i64(mem.get_library('client_engine.so'))
         mp_teammates_are_enemies = ConVar('mp_teammates_are_enemies')
     except Exception as e:
         print(e)
