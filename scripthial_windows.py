@@ -579,27 +579,26 @@ if __name__ == "__main__":
     while mem.is_running() and not InputSystem.is_button_down(quit_key):
         k32.Sleep(1)
         if Engine.is_in_game():
-            if Engine.is_in_game():
-                try:
-                    self = Entity.get_client_entity(Engine.get_local_player())
-                    weapon_id = self.get_weapon_id()
-                    if weapon_id == 42 or weapon_id == 49:
-                        continue
-                    if InputSystem.is_button_down(trigger_key):
-                        cross_id = self.get_cross_index()
-                        if cross_id == 0:
-                            continue
-                        cross_target = Entity.get_client_entity(cross_id - 1)
-                        if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
-                            u32.mouse_event(0x0002, 0, 0, 0, 0)
-                            u32.mouse_event(0x0004, 0, 0, 0, 0)
-                    if InputSystem.is_button_down(aim_key):
-                        view_angle = Engine.get_view_angles()
-                        _current_tick = self.get_tick_count()
-                        if not _target.is_valid() and not get_best_target(view_angle, self):
-                            continue
-                        aim_at_target(view_angle, get_target_angle(self, _target, _target_bone))
-                    else:
-                        _target = Player(0)
-                except ValueError:
+            try:
+                self = Entity.get_client_entity(Engine.get_local_player())
+                weapon_id = self.get_weapon_id()
+                if weapon_id == 42 or weapon_id == 49:
                     continue
+                if InputSystem.is_button_down(trigger_key):
+                    cross_id = self.get_cross_index()
+                    if cross_id == 0:
+                        continue
+                    cross_target = Entity.get_client_entity(cross_id - 1)
+                    if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
+                        u32.mouse_event(0x0002, 0, 0, 0, 0)
+                        u32.mouse_event(0x0004, 0, 0, 0, 0)
+                if InputSystem.is_button_down(aim_key):
+                    view_angle = Engine.get_view_angles()
+                    _current_tick = self.get_tick_count()
+                    if not _target.is_valid() and not get_best_target(view_angle, self):
+                        continue
+                    aim_at_target(view_angle, get_target_angle(self, _target, _target_bone))
+                else:
+                    _target = Player(0)
+            except ValueError:
+                continue
