@@ -15,5 +15,5 @@ https://github.com/colinmorris/char-rbm/blob/master/samples/repos_unique.txt#L96
 * git clone https://github.com/ekknod/scripthial
 * cd scripthial
 * [LINUX] sudo python scripthial_linux.py
-* [WINDOWS] python.exe scripthial_windows.py
+* [WINDOWS] py scripthial_windows.py
 
