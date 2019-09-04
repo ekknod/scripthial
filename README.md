@@ -1,5 +1,5 @@
 # scripthial
-linux python aimassist
+windows/linux python aimassist
 
 # repo name
 https://github.com/colinmorris/char-rbm/blob/master/samples/repos_unique.txt#L9698
@@ -14,5 +14,6 @@ https://github.com/colinmorris/char-rbm/blob/master/samples/repos_unique.txt#L96
 # usage
 * git clone https://github.com/ekknod/scripthial
 * cd scripthial
-* sudo python main.py
+* [LINUX] sudo python scripthial_linux.py
+* [WINDOWS] python.exe scripthial_windows.py
 
