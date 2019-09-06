@@ -581,9 +581,9 @@ if __name__ == "__main__":
         if Engine.is_in_game():
             try:
                 self = Entity.get_client_entity(Engine.get_local_player())
-                weapon_id = self.get_weapon_id()
-                if weapon_id == 42 or weapon_id == 49:
-                    continue
+                # weapon_id = self.get_weapon_id()
+                # if weapon_id == 42 or weapon_id == 49:
+                #    continue
                 if InputSystem.is_button_down(trigger_key):
                     cross_id = self.get_cross_index()
                     if cross_id == 0:
