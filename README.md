@@ -11,6 +11,8 @@ https://www.microsoft.com/en-us/p/python-37/9nj46sx7x90p?activetab=pivot:overvie
 * external interfaces
 * external netvars
 * external convars
+* external glow
+* external rcs
 * external aimbot
 * external triggerbot
 
