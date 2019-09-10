@@ -646,7 +646,7 @@ if __name__ == "__main__":
                     if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
                         u32.mouse_event(0x0002, 0, 0, 0, 0)
                         u32.mouse_event(0x0004, 0, 0, 0, 0)
-                if InputSystem.is_button_down(g_aimbot_key):
+                if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
                     view_angle = Engine.get_view_angles()
                     _current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
