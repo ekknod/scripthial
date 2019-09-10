@@ -10,7 +10,7 @@ u32 = windll.user32
 
 
 g_glow = True
-g_rcs = False
+g_rcs = True
 g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
@@ -619,6 +619,7 @@ if __name__ == "__main__":
             try:
                 self = Entity.get_client_entity(Engine.get_local_player())
                 fl_sensitivity = _sensitivity.get_float()
+                view_angle = Engine.get_view_angles()
                 # weapon_id = self.get_weapon_id()
                 # if weapon_id == 42 or weapon_id == 49:
                 #    continue
@@ -647,7 +648,6 @@ if __name__ == "__main__":
                         u32.mouse_event(0x0002, 0, 0, 0, 0)
                         u32.mouse_event(0x0004, 0, 0, 0, 0)
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
-                    view_angle = Engine.get_view_angles()
                     _current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
                         continue
