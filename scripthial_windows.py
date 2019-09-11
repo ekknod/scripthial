@@ -9,8 +9,8 @@ u32 = windll.user32
 #
 
 
-g_glow = True
-g_rcs = True
+g_glow = False
+g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
