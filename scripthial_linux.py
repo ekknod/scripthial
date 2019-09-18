@@ -7,7 +7,7 @@ libc = CDLL('libc.so.6')
 #
 
 
-g_glow = False
+g_glow = True
 g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
@@ -33,36 +33,6 @@ class InputEvent(Structure):
 
 class Vector3(Structure):
     _fields_ = [('x', c_float), ('y', c_float), ('z', c_float)]
-
-
-class CUserCmd(Structure):
-    _fields_ = [
-        ('p_self', c_int64),
-        ('cmd_num', c_int32),
-        ('tick_count', c_int32),
-        ('view_angles', Vector3),
-        ('aim_direction', Vector3),
-        ('forward_move', c_float),
-        ('side_move', c_float),
-        ('up_move', c_float),
-        ('buttons', c_int32),
-        ('impulse', c_int8),
-        ('padding_0', c_int8),
-        ('padding_1', c_int8),
-        ('padding_2', c_int8),
-        ('weapon_select', c_int32),
-        ('weapon_subtype', c_int32),
-        ('random_seed', c_int32),
-        ('mouse_dx', c_int16),
-        ('mouse_dy', c_int16),
-        ('bHasBeenPredicted', c_int8),
-        ('padding_3', c_int64),
-        ('padding_4', c_int64),
-        ('padding_5', c_int64),
-        ('padding_6', c_int8),
-        ('padding_7', c_int8),
-        ('padding_8', c_int8),
-    ]
 
 
 class MouseInput:
@@ -356,6 +326,8 @@ class InterfaceList:
         self.input = table.get_interface('InputSystemVersion')
 
 
+# glow sig: E8 ? ? ? ? 48 8B 3D ? ? ? ? BE 01 00 00 00 C7
+# x????xxx????xxxxxx
 class NetVarList:
     @staticmethod
     def __get_entity_list():
@@ -382,6 +354,7 @@ class NetVarList:
         self.m_hActiveWeapon = table.get_offset('m_hActiveWeapon')
         self.m_iShotsFired = table.get_offset('m_iShotsFired')
         self.m_iCrossHairID = table.get_offset('m_bHasDefuser') + 0x78
+        self.m_iGlowIndex = table.get_offset('m_flFlashDuration') + 0x34
         table = NetVarTable('DT_BaseAnimating')
         self.m_dwBoneMatrix = table.get_offset('m_nForceBone') + 0x2C
         table = NetVarTable('DT_BaseAttributableItem')
@@ -699,19 +672,16 @@ if __name__ == "__main__":
                 self = Entity.get_client_entity(Engine.get_local_player())
                 fl_sensitivity = _sensitivity.get_float()
                 view_angle = Engine.get_view_angles()
-                # weapon_id = self.get_weapon_id()
-                # if weapon_id == 42 or weapon_id == 49:
-                #    continue
-                # if g_glow:
-                #     glow_pointer = mem.read_i64(nv.dwGlowObjectManager)
-                #     for i in range(0, Engine.get_max_clients()):
-                #         entity = Entity.get_client_entity(i)
-                #         if not entity.is_valid():
-                #             continue
-                #         if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
-                #             continue
-                #         entity_health = entity.get_health() / 100.0
-                #         index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
+                if g_glow:
+                    # glow_pointer = mem.read_i64(nv.dwGlowObjectManager)
+                    for i in range(0, Engine.get_max_clients()):
+                        entity = Entity.get_client_entity(i)
+                        if not entity.is_valid():
+                            continue
+                        if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
+                            continue
+                        entity_health = entity.get_health() / 100.0
+                        index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
                 #         mem.write_float(glow_pointer + index + 0x04, 1.0 - entity_health)  # r
                 #         mem.write_float(glow_pointer + index + 0x08, entity_health)        # g
                 #         mem.write_float(glow_pointer + index + 0x0C, 0.0)                  # b
@@ -722,7 +692,7 @@ if __name__ == "__main__":
                     cross_id = self.get_cross_index()
                     if cross_id == 0:
                         continue
-                    cross_target = Entity.get_client_entity(cross_id - 1)
+                    cross_target = Entity.get_client_entity(cross_id)
                     if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
                         mouse.click()
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
