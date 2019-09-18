@@ -42,24 +42,21 @@ class MouseInput:
         for device in os.listdir('/dev/input/by-id/'):
             if device[-device_name.__len__():] == device_name:
                 self.handle = os.open('/dev/input/by-id/' + device, os.O_WRONLY)
-                break
-        if self.handle == -1:
-            raise Exception('[!]Input::__init__')
+                return
+        raise Exception("Input [" + device_name + "] not found!")
 
     def __del__(self):
         if self.handle != -1:
-            libc.close(self.handle)
+            os.close(self.handle)
 
     def __send_input(self, input_type, code, value):
         start = InputEvent()
         end = InputEvent()
-
         libc.gettimeofday(pointer(start.time), 0)
         start.type = input_type
         start.code = code
         start.value = value
         libc.gettimeofday(pointer(end.time), 0)
-
         libc.write(self.handle, pointer(start), sizeof(start))
         libc.write(self.handle, pointer(end), sizeof(end))
 
@@ -82,8 +79,8 @@ class Process:
             except:
                 continue
             if temp_name == process_name:
-                return i
-        return 0
+                return i  
+        raise Exception("Process [" + process_name + "] not found!")
 
     @staticmethod
     def get_process_base(process_id):
@@ -97,7 +94,7 @@ class Process:
             a2 = 56 * a1 + a0
             if self.read_i32(a2) == tag:
                 return a2
-        return 0
+        raise Exception("Process::__get_elf_address")
 
     def get_process_maps(self, pid):
         a0 = self.get_process_base(pid)
@@ -111,18 +108,18 @@ class Process:
                 a4 = self.read_i64(a3 + 8)
                 return a4
             a2 = a2 + 8
-        return 0
+        raise Exception("Process::get_process_maps")
 
     def __init__(self, process_name):
+        self.handle = -1
         pid = self.get_process_id(process_name)
-        if pid == 0:
-            raise Exception('[!]Process::get_process_id')
         self.dir = "/proc/" + pid + "/mem"
         self.handle = os.open(self.dir, os.O_RDWR)
         self.maps = self.get_process_maps(pid)
 
     def __del__(self):
-        os.close(self.handle)
+        if self.handle != -1:
+            os.close(self.handle)
 
     def exists(self):
         return os.access(self.dir, os.F_OK)
@@ -139,7 +136,7 @@ class Process:
             library_name = self.read_string(temp, 256)
             if library_name[-name.__len__():] == name.encode('ascii', 'ignore'):
                 return maps
-        return 0
+        raise Exception("Library [" + name + "] not found!")
 
     def get_export(self, library, name):
         if library == 0:
@@ -157,16 +154,14 @@ class Process:
                 return sym_tab + self.read_i64(library)
             sym_tab += 0x18
             st_name = self.read_i32(sym_tab)
-        return 0
+        raise Exception("Export [" + name + "] not found!")
 
     def find_pattern(self, start, library_name, pattern, mask):
         a0 = self.get_library(library_name)
-        a1 = self.read_i64(a0)              # base
-        a2 = a1 + self.read_i32(a1 + 0x20)  # Elf64_Phdr
-        a3 = self.read_i32(a2 + 0x10)       # p_vaddr
-        a4 = self.read_i32(a2 + 0x28)       # p_memsz
-
-        # a5 = mem.read_string(a1 + a3)
+        a1 = self.read_i64(a0)
+        a2 = a1 + self.read_i32(a1 + 0x20)
+        a3 = self.read_i32(a2 + 0x10)
+        a4 = self.read_i32(a2 + 0x28)
         a5 = create_string_buffer(a4)
         libc.pread(self.handle, pointer(a5), a4, c_long(a1 + a3))
         a5 = cast(a5, POINTER(c_uint8))
@@ -178,7 +173,7 @@ class Process:
                 a6 = a6 + 1
             if a6 == pattern.__len__():
                 return a1 + a3 + index
-        return 0
+        raise Exception("[!]Process::find_pattern")
 
     def read_i8(self, address, length=1):
         buffer = c_int8()
@@ -257,8 +252,6 @@ class VirtualTable:
 class InterfaceTable:
     def __init__(self, name):
         self.table_list = mem.read_i64(mem.get_export(mem.get_library(name), 's_pInterfaceRegs'))
-        if self.table_list == 0:
-            raise Exception('[!]InterfaceTable::__init__')
 
     def get_interface(self, name):
         a0 = self.table_list
@@ -271,7 +264,7 @@ class InterfaceTable:
                     a0 = mem.read_i64(mem.read_i64(a0 + (mem.read_i32(a0 + 0 + 3) + 7)))
                 return VirtualTable(a0)
             a0 = mem.read_i64(a0 + 0x10)
-        raise Exception('[!]InterfaceTable::get_interface')
+        raise Exception("Interface [" + name + "] not found!")
 
 
 class NetVarTable:
@@ -283,15 +276,14 @@ class NetVarTable:
             a1 = mem.read_i64(a0 + 0x18)
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a1 + 0x18)):
                 self.table = a1
-                break
+                return
             a0 = mem.read_i64(a0 + 0x20)
-        if self.table == 0:
-            raise Exception('[!]NetVarTable::__init__')
+        raise Exception("NetvarTable [" + name + "] not found!")
 
     def get_offset(self, name):
         offset = self.__get_offset(self.table, name)
         if offset == 0:
-            raise Exception('[!]NetVarTable::get_offset')
+            raise Exception("Offset [" + name + "] not found!")
         return offset
 
     def __get_offset(self, address, name):
@@ -316,10 +308,9 @@ class ConVar:
         while a0 != 0:
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a0 + 0x18)):
                 self.address = a0
-                break
+                return
             a0 = mem.read_i64(a0 + 0x8)
-        if self.address == 0:
-            raise Exception('[!]ConVar not found!')
+        raise Exception("Convar [" + name + "] not found!")
 
     def get_int(self):
         a0 = c_int32()
@@ -659,7 +650,7 @@ if __name__ == "__main__":
         _sensitivity = ConVar('sensitivity')
         mp_teammates_are_enemies = ConVar('mp_teammates_are_enemies')
     except Exception as e:
-        print(e)
+        print("Error: " + e.__str__())
         exit(0)
 
     print('[*]VirtualTables')
