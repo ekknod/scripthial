@@ -707,12 +707,12 @@ if __name__ == "__main__":
                         if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
                             continue
                         entity_health = entity.get_health() / 100.0
-                        mem.write_float(glow_ptr + index + 0x04 + 4, 1.0 - entity_health)  # r
-                        mem.write_float(glow_ptr + index + 0x08 + 4, entity_health)        # g
-                        mem.write_float(glow_ptr + index + 0x0C + 4, 0.0)                  # b
-                        mem.write_float(glow_ptr + index + 0x10 + 4, 0.8)                  # a
-                        mem.write_i8(glow_ptr + index + 0x24 + 4, 1)
-                        mem.write_i8(glow_ptr + index + 0x25 + 4, 0)
+                        mem.write_float(glow_ptr + index + 0x08, 1.0 - entity_health)  # r
+                        mem.write_float(glow_ptr + index + 0x0C, entity_health)        # g
+                        mem.write_float(glow_ptr + index + 0x10, 0.0)                  # b
+                        mem.write_float(glow_ptr + index + 0x14, 0.8)                  # a
+                        mem.write_i8(glow_ptr + index + 0x28, 1)
+                        mem.write_i8(glow_ptr + index + 0x29, 0)
                 if InputSystem.is_button_down(g_triggerbot_key):
                     cross_id = self.get_cross_index()
                     if cross_id == 0:
