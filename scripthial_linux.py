@@ -1,20 +1,26 @@
-from ctypes import *
 import os
 import math
-cdll.LoadLibrary("libc.so.6")
+from ctypes import *
 libc = CDLL('libc.so.6')
 #
 # ekknod@2019
 #
 
 
-bone_list = [5, 4, 3, 0, 7, 8]
-head_only = False
-aim_smooth = 5
-aim_fov = 1.0 / 180.0
-aim_key = 107       # mouse 1
-trigger_key = 111   # mouse5
-quit_key = 72       # insert
+g_glow = False
+g_rcs = False
+g_aimbot = True
+g_aimbot_rcs = True
+g_aimbot_head = False
+g_aimbot_fov = 1.0 / 180.0
+g_aimbot_smooth = 5.0
+g_aimbot_key = 107
+g_triggerbot_key = 111
+g_exit_key = 72
+
+g_old_punch = 0
+g_previous_tick = 0
+g_current_tick = 0
 
 
 class TimeVal(Structure):
@@ -378,6 +384,8 @@ class NetVarList:
         self.m_iCrossHairID = table.get_offset('m_bHasDefuser') + 0x78
         table = NetVarTable('DT_BaseAnimating')
         self.m_dwBoneMatrix = table.get_offset('m_nForceBone') + 0x2C
+        table = NetVarTable('DT_BaseAttributableItem')
+        self.m_iItemDefinitionIndex = table.get_offset('m_iItemDefinitionIndex')
         self.entityList = self.__get_entity_list()
         self.clientState = self.__get_client_state()
         self.getLocalPlayer = mem.read_i32(vt.engine.function(12) + 0x11)
@@ -415,6 +423,9 @@ class Player:
     def get_weapon(self):
         a0 = mem.read_i32(self.address + nv.m_hActiveWeapon)
         return mem.read_i64(nv.entityList + ((a0 & 0xFFF) - 1) * 0x10)
+
+    def get_weapon_id(self):
+        return mem.read_i32(self.get_weapon() + nv.m_iItemDefinitionIndex)
 
     def get_origin(self):
         return mem.read_vec3(self.address + nv.m_vecOrigin)
@@ -473,15 +484,6 @@ class InputSystem:
     def is_button_down(button):
         a0 = mem.read_i32(vt.input.table + ((button >> 5) * 4) + nv.dwButton)
         return (a0 >> (button & 31)) & 1
-
-
-def get_user_cmd():
-    sequence_num = mem.read_i32(nv.clientState + nv.dwLastCommand)
-    user_cmd = mem.read_i64(nv.dwInput + 0x100) + (sequence_num % 150) * 104
-    user_cmd_old = mem.read_i64(nv.dwInput + 0x100) + ((sequence_num - 1) % 150) * 104
-    while mem.read_i32(user_cmd + 0x8) < sequence_num:
-        libc.usleep(100)
-    return mem.read(user_cmd_old, CUserCmd(), sizeof(CUserCmd))
 
 
 class Math:
@@ -560,7 +562,7 @@ def get_target_angle(local_p, target, bone_id):
     c.y = m.y - c.y
     c.z = m.z - c.z
     c = Math.vec_angles(Math.vec_normalize(c))
-    if local_p.get_shots_fired() > 1:
+    if g_aimbot_rcs and local_p.get_shots_fired() > 1:
         p = local_p.get_vec_punch()
         c.x -= p.x * 2.0
         c.y -= p.y * 2.0
@@ -570,47 +572,44 @@ def get_target_angle(local_p, target, bone_id):
 
 _target = Player(0)
 _target_bone = 0
+_bones = [5, 4, 3, 0, 7, 8]
+
+
+def target_set(target):
+    global _target
+    _target = target
 
 
 def get_best_target(va, local_p):
-    global _target
     global _target_bone
     a0 = 9999.9
     for i in range(1, Engine.get_max_clients()):
         entity = Entity.get_client_entity(i)
         if not entity.is_valid():
             continue
-
         if not mp_teammates_are_enemies.get_int() and local_p.get_team_num() == entity.get_team_num():
             continue
-
-        if head_only:
+        if g_aimbot_head:
             fov = Math.get_fov(va, get_target_angle(local_p, entity, 8))
             if fov < a0:
                 a0 = fov
-                _target = entity
+                target_set(entity)
                 _target_bone = 8
         else:
-            for j in range(0, bone_list.__len__()):
-                fov = Math.get_fov(va, get_target_angle(local_p, entity, bone_list[j]))
+            for j in range(0, _bones.__len__()):
+                fov = Math.get_fov(va, get_target_angle(local_p, entity, _bones[j]))
                 if fov < a0:
                     a0 = fov
-                    _target = entity
-                    _target_bone = bone_list[j]
+                    target_set(entity)
+                    _target_bone = _bones[j]
     return a0 != 9999
 
 
-_current_tick = 0
-_previous_tick = 0
-
-
-def aim_at_target(va, angle):
-    global _current_tick
-    global _previous_tick
-
+def aim_at_target(sensitivity, va, angle):
+    global g_current_tick
+    global g_previous_tick
     y = va.x - angle.x
     x = va.y - angle.y
-
     if y > 89.0:
         y = 89.0
     elif y < -89.0:
@@ -619,44 +618,31 @@ def aim_at_target(va, angle):
         x -= 360.0
     elif x < -180.0:
         x += 360.0
-
-    if math.fabs(x) / 180.0 >= aim_fov:
+    if math.fabs(x) / 180.0 >= g_aimbot_fov:
+        target_set(Player(0))
         return
-
-    if math.fabs(y) / 89.0 >= aim_fov:
+    if math.fabs(y) / 89.0 >= g_aimbot_fov:
+        target_set(Player(0))
         return
-
-    fl_sensitivity = sensitivity.get_float()
-    x = (x / fl_sensitivity) / 0.022
-    y = (y / fl_sensitivity) / -0.022
-    if aim_smooth != 0.00:
+    x = (x / sensitivity) / 0.022
+    y = (y / sensitivity) / -0.022
+    if g_aimbot_smooth > 1.00:
         sx = 0.00
         sy = 0.00
         if sx < x:
-            sx += 1.0 + (x / aim_smooth)
+            sx += 1.0 + (x / g_aimbot_smooth)
         elif sx > x:
-            sx -= 1.0 - (x / aim_smooth)
+            sx -= 1.0 - (x / g_aimbot_smooth)
         if sy < y:
-            sy += 1.0 + (y / aim_smooth)
+            sy += 1.0 + (y / g_aimbot_smooth)
         elif sy > y:
-            sy -= 1.0 - (y / aim_smooth)
+            sy -= 1.0 - (y / g_aimbot_smooth)
     else:
         sx = x
         sy = y
-    if _current_tick - _previous_tick > 0:
-        _previous_tick = _current_tick
+    if _current_tick - g_previous_tick > 0:
+        g_previous_tick = g_current_tick
         mouse.move(int(sx), int(sy))
-
-
-def trigger_bot(local_p):
-    if InputSystem.is_button_down(trigger_key):
-        cross_id = local_p.get_cross_index()
-        if cross_id == 0:
-            return
-
-        cross_target = Entity.get_client_entity(cross_id)
-        if local_p.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
-            mouse.click()
 
 
 if __name__ == "__main__":
@@ -672,7 +658,7 @@ if __name__ == "__main__":
         mem = Process('csgo_linux64')
         vt = InterfaceList()
         nv = NetVarList()
-        sensitivity = ConVar('sensitivity')
+        _sensitivity = ConVar('sensitivity')
         mp_teammates_are_enemies = ConVar('mp_teammates_are_enemies')
     except Exception as e:
         print(e)
@@ -706,20 +692,55 @@ if __name__ == "__main__":
     print('[*]Info')
     print('    Creator:            github.com/ekknod')
 
-    while mem.exists() and not InputSystem.is_button_down(quit_key):
+    while mem.exists() and not InputSystem.is_button_down(g_exit_key):
         libc.usleep(1000)
         if Engine.is_in_game():
             try:
                 self = Entity.get_client_entity(Engine.get_local_player())
-                trigger_bot(self)
-                # print(get_user_cmd().mouse_dx)
-                if InputSystem.is_button_down(aim_key):
-                    view_angle = Engine.get_view_angles()
+                fl_sensitivity = _sensitivity.get_float()
+                view_angle = Engine.get_view_angles()
+                # weapon_id = self.get_weapon_id()
+                # if weapon_id == 42 or weapon_id == 49:
+                #    continue
+                # if g_glow:
+                #     glow_pointer = mem.read_i64(nv.dwGlowObjectManager)
+                #     for i in range(0, Engine.get_max_clients()):
+                #         entity = Entity.get_client_entity(i)
+                #         if not entity.is_valid():
+                #             continue
+                #         if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
+                #             continue
+                #         entity_health = entity.get_health() / 100.0
+                #         index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
+                #         mem.write_float(glow_pointer + index + 0x04, 1.0 - entity_health)  # r
+                #         mem.write_float(glow_pointer + index + 0x08, entity_health)        # g
+                #         mem.write_float(glow_pointer + index + 0x0C, 0.0)                  # b
+                #         mem.write_float(glow_pointer + index + 0x10, 0.8)                  # a
+                #         mem.write_i8(glow_pointer + index + 0x24, 1)
+                #         mem.write_i8(glow_pointer + index + 0x25, 0)
+                if InputSystem.is_button_down(g_triggerbot_key):
+                    cross_id = self.get_cross_index()
+                    if cross_id == 0:
+                        continue
+                    cross_target = Entity.get_client_entity(cross_id - 1)
+                    if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
+                        mouse.click()
+                if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
                     _current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
                         continue
-                    aim_at_target(view_angle, get_target_angle(self, _target, _target_bone))
+                    aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
                 else:
-                    _target = Player(0)
+                    target_set(Player(0))
+                if g_rcs:
+                    current_punch = self.get_vec_punch()
+                    if self.get_shots_fired() > 1:
+                        new_punch = Vector3(current_punch.x - g_old_punch.x,
+                                            current_punch.y - g_old_punch.y, 0)
+                        new_angle = Vector3(view_angle.x - new_punch.x * 2.0, view_angle.y - new_punch.y * 2.0, 0)
+                        mouse.move(int(((new_angle.y - view_angle.y) / fl_sensitivity) / -0.022),
+                                   int(((new_angle.x - view_angle.x) / fl_sensitivity) / 0.022))
+                    g_old_punch = current_punch
             except ValueError:
                 continue
+
