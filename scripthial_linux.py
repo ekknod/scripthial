@@ -1,7 +1,7 @@
 import os
 import math
 from ctypes import *
-libc = CDLL('libc.so.6')
+libc = CDLL("libc.so.6")
 #
 # ekknod@2019
 #
@@ -24,24 +24,24 @@ g_current_tick = 0
 
 
 class TimeVal(Structure):
-    _fields_ = [('sec', c_long), ('u_sec', c_long)]
+    _fields_ = [("sec", c_long), ("u_sec", c_long)]
 
 
 class InputEvent(Structure):
-    _fields_ = [('time', TimeVal), ('type', c_uint16), ('code', c_uint16), ('value', c_int)]
+    _fields_ = [("time", TimeVal), ("type", c_uint16), ("code", c_uint16), ("value", c_int)]
 
 
 class Vector3(Structure):
-    _fields_ = [('x', c_float), ('y', c_float), ('z', c_float)]
+    _fields_ = [("x", c_float), ("y", c_float), ("z", c_float)]
 
 
 class MouseInput:
     def __init__(self):
         self.handle = -1
-        device_name = 'event-mouse'
-        for device in os.listdir('/dev/input/by-id/'):
+        device_name = "event-mouse"
+        for device in os.listdir("/dev/input/by-id/"):
             if device[-device_name.__len__():] == device_name:
-                self.handle = os.open('/dev/input/by-id/' + device, os.O_WRONLY)
+                self.handle = os.open("/dev/input/by-id/" + device, os.O_WRONLY)
                 return
         raise Exception("Input [" + device_name + "] not found!")
 
@@ -73,9 +73,9 @@ class MouseInput:
 class Process:
     @staticmethod
     def get_process_id(process_name):
-        for i in os.listdir('/proc/'):
+        for i in os.listdir("/proc/"):
             try:
-                temp_name = os.readlink('/proc/' + i + '/exe')[-len(process_name):]
+                temp_name = os.readlink("/proc/" + i + "/exe")[-len(process_name):]
             except:
                 continue
             if temp_name == process_name:
@@ -134,7 +134,7 @@ class Process:
             if temp == 0:
                 continue
             library_name = self.read_string(temp, 256)
-            if library_name[-name.__len__():] == name.encode('ascii', 'ignore'):
+            if library_name[-name.__len__():] == name.encode("ascii", "ignore"):
                 return maps
         raise Exception("Library [" + name + "] not found!")
 
@@ -149,7 +149,7 @@ class Process:
         sym_tab += 0x18
         while st_name != 0:
             sym_name = self.read_string(str_tab + st_name)
-            if sym_name == name.encode('ascii', 'ignore'):
+            if sym_name == name.encode("ascii", "ignore"):
                 sym_tab = self.read_i64(sym_tab + 8)
                 return sym_tab + self.read_i64(library)
             sym_tab += 0x18
@@ -251,12 +251,12 @@ class VirtualTable:
 
 class InterfaceTable:
     def __init__(self, name):
-        self.table_list = mem.read_i64(mem.get_export(mem.get_library(name), 's_pInterfaceRegs'))
+        self.table_list = mem.read_i64(mem.get_export(mem.get_library(name), "s_pInterfaceRegs"))
 
     def get_interface(self, name):
         a0 = self.table_list
         while a0 != 0:
-            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a0 + 0x08))[0:-3]:
+            if name.encode("ascii", "ignore") == mem.read_string(mem.read_i64(a0 + 0x08))[0:-3]:
                 a0 = mem.read_i64(a0)
                 if mem.read_i8(a0) != 0x48:
                     a0 += mem.read_i32(a0 + 1 + 3) + 8
@@ -274,7 +274,7 @@ class NetVarTable:
         a0 = mem.read_i64(mem.read_i64(a0 + mem.read_i32(a0 + 0 + 3) + 7))
         while a0 != 0:
             a1 = mem.read_i64(a0 + 0x18)
-            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a1 + 0x18)):
+            if name.encode("ascii", "ignore") == mem.read_string(mem.read_i64(a1 + 0x18)):
                 self.table = a1
                 return
             a0 = mem.read_i64(a0 + 0x20)
@@ -296,7 +296,7 @@ class NetVarTable:
                 a5 = self.__get_offset(a4, name)
                 if a5 != 0:
                     a0 += a3 + a5
-            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a2)):
+            if name.encode("ascii", "ignore") == mem.read_string(mem.read_i64(a2)):
                 return a3 + a0
         return a0
 
@@ -306,7 +306,7 @@ class ConVar:
         self.address = 0
         a0 = mem.read_i64(mem.read_i64(mem.read_i64(vt.cvar.table + 0x70)) + 0x8)
         while a0 != 0:
-            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a0 + 0x18)):
+            if name.encode("ascii", "ignore") == mem.read_string(mem.read_i64(a0 + 0x18)):
                 self.address = a0
                 return
             a0 = mem.read_i64(a0 + 0x8)
@@ -327,15 +327,15 @@ class ConVar:
 
 class InterfaceList:
     def __init__(self):
-        table = InterfaceTable('client_panorama_client.so')
-        self.client = table.get_interface('VClient')
-        self.entity = table.get_interface('VClientEntityList')
-        table = InterfaceTable('engine_client.so')
-        self.engine = table.get_interface('VEngineClient')
-        table = InterfaceTable('materialsystem_client.so')
-        self.cvar = table.get_interface('VEngineCvar')
-        table = InterfaceTable('inputsystem_client.so')
-        self.input = table.get_interface('InputSystemVersion')
+        table = InterfaceTable("client_panorama_client.so")
+        self.client = table.get_interface("VClient")
+        self.entity = table.get_interface("VClientEntityList")
+        table = InterfaceTable("engine_client.so")
+        self.engine = table.get_interface("VEngineClient")
+        table = InterfaceTable("materialsystem_client.so")
+        self.cvar = table.get_interface("VEngineCvar")
+        table = InterfaceTable("inputsystem_client.so")
+        self.input = table.get_interface("InputSystemVersion")
 
 
 class NetVarList:
@@ -351,23 +351,23 @@ class NetVarList:
         return mem.read_i64(a0 + a1 + a2 + 0x08) + 0x08
 
     def __init__(self):
-        table = NetVarTable('DT_BasePlayer')
-        self.m_iHealth = table.get_offset('m_iHealth')
-        self.m_vecViewOffset = table.get_offset('m_vecViewOffset[0]')
-        self.m_lifeState = table.get_offset('m_lifeState')
-        self.m_nTickBase = table.get_offset('m_nTickBase')
-        self.m_vecPunch = table.get_offset('m_aimPunchAngle')
-        table = NetVarTable('DT_BaseEntity')
-        self.m_iTeamNum = table.get_offset('m_iTeamNum')
-        self.m_vecOrigin = table.get_offset('m_vecOrigin')
-        table = NetVarTable('DT_CSPlayer')
-        self.m_hActiveWeapon = table.get_offset('m_hActiveWeapon')
-        self.m_iShotsFired = table.get_offset('m_iShotsFired')
-        self.m_iCrossHairID = table.get_offset('m_bHasDefuser') + 0x78
-        table = NetVarTable('DT_BaseAnimating')
-        self.m_dwBoneMatrix = table.get_offset('m_nForceBone') + 0x2C
-        table = NetVarTable('DT_BaseAttributableItem')
-        self.m_iItemDefinitionIndex = table.get_offset('m_iItemDefinitionIndex')
+        table = NetVarTable("DT_BasePlayer")
+        self.m_iHealth = table.get_offset("m_iHealth")
+        self.m_vecViewOffset = table.get_offset("m_vecViewOffset[0]")
+        self.m_lifeState = table.get_offset("m_lifeState")
+        self.m_nTickBase = table.get_offset("m_nTickBase")
+        self.m_vecPunch = table.get_offset("m_aimPunchAngle")
+        table = NetVarTable("DT_BaseEntity")
+        self.m_iTeamNum = table.get_offset("m_iTeamNum")
+        self.m_vecOrigin = table.get_offset("m_vecOrigin")
+        table = NetVarTable("DT_CSPlayer")
+        self.m_hActiveWeapon = table.get_offset("m_hActiveWeapon")
+        self.m_iShotsFired = table.get_offset("m_iShotsFired")
+        self.m_iCrossHairID = table.get_offset("m_bHasDefuser") + 0x78
+        table = NetVarTable("DT_BaseAnimating")
+        self.m_dwBoneMatrix = table.get_offset("m_nForceBone") + 0x2C
+        table = NetVarTable("DT_BaseAttributableItem")
+        self.m_iItemDefinitionIndex = table.get_offset("m_iItemDefinitionIndex")
         self.entityList = self.__get_entity_list()
         self.clientState = self.__get_client_state()
         self.getLocalPlayer = mem.read_i32(vt.engine.function(12) + 0x11)
@@ -381,7 +381,7 @@ class NetVarList:
         if g_glow:
             # 0x6A5C30 = hardcoded relocation end
             temp = mem.find_pattern(0x6A5C30, "client_panorama_client.so",
-                b'\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7',
+                b"\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7",
                 "x????xxx????xxxxxx")
             temp = mem.read_absolute(temp, 1, 5)
             self.dwGlowObjectManager = mem.read_absolute(temp + 0x0B, 1, 5)
@@ -644,42 +644,42 @@ if __name__ == "__main__":
 
     try:
         mouse = MouseInput()
-        mem = Process('csgo_linux64')
+        mem = Process("csgo_linux64")
         vt = InterfaceList()
         nv = NetVarList()
-        _sensitivity = ConVar('sensitivity')
-        mp_teammates_are_enemies = ConVar('mp_teammates_are_enemies')
+        _sensitivity = ConVar("sensitivity")
+        mp_teammates_are_enemies = ConVar("mp_teammates_are_enemies")
     except Exception as e:
         print("Error: " + e.__str__())
         exit(0)
 
-    print('[*]VirtualTables')
-    print('    VClient:            ' + hex(vt.client.table))
-    print('    VClientEntityList:  ' + hex(vt.entity.table))
-    print('    VEngineClient:      ' + hex(vt.engine.table))
-    print('    VEngineCvar:        ' + hex(vt.cvar.table))
-    print('    InputSystemVersion: ' + hex(vt.input.table))
-    print('[*]Offsets')
-    print('    EntityList:         ' + hex(nv.entityList))
-    print('    ClientState:        ' + hex(nv.clientState))
-    print('    GetLocalPlayer:     ' + hex(nv.getLocalPlayer))
-    print('    GetViewAngles:      ' + hex(nv.dwViewAngles))
-    print('    GetMaxClients:      ' + hex(nv.dwMaxClients))
-    print('    IsInGame:           ' + hex(nv.dwState))
-    print('[*]NetVars')
-    print('    m_iHealth:          ' + hex(nv.m_iHealth))
-    print('    m_vecViewOffset:    ' + hex(nv.m_vecViewOffset))
-    print('    m_lifeState:        ' + hex(nv.m_lifeState))
-    print('    m_nTickBase:        ' + hex(nv.m_nTickBase))
-    print('    m_vecPunch:         ' + hex(nv.m_vecPunch))
-    print('    m_iTeamNum:         ' + hex(nv.m_iTeamNum))
-    print('    m_vecOrigin:        ' + hex(nv.m_vecOrigin))
-    print('    m_hActiveWeapon:    ' + hex(nv.m_hActiveWeapon))
-    print('    m_iShotsFired:      ' + hex(nv.m_iShotsFired))
-    print('    m_iCrossHairID:     ' + hex(nv.m_iCrossHairID))
-    print('    m_dwBoneMatrix:     ' + hex(nv.m_dwBoneMatrix))
-    print('[*]Info')
-    print('    Creator:            github.com/ekknod')
+    print("[*]VirtualTables")
+    print("    VClient:            " + hex(vt.client.table))
+    print("    VClientEntityList:  " + hex(vt.entity.table))
+    print("    VEngineClient:      " + hex(vt.engine.table))
+    print("    VEngineCvar:        " + hex(vt.cvar.table))
+    print("    InputSystemVersion: " + hex(vt.input.table))
+    print("[*]Offsets")
+    print("    EntityList:         " + hex(nv.entityList))
+    print("    ClientState:        " + hex(nv.clientState))
+    print("    GetLocalPlayer:     " + hex(nv.getLocalPlayer))
+    print("    GetViewAngles:      " + hex(nv.dwViewAngles))
+    print("    GetMaxClients:      " + hex(nv.dwMaxClients))
+    print("    IsInGame:           " + hex(nv.dwState))
+    print("[*]NetVars")
+    print("    m_iHealth:          " + hex(nv.m_iHealth))
+    print("    m_vecViewOffset:    " + hex(nv.m_vecViewOffset))
+    print("    m_lifeState:        " + hex(nv.m_lifeState))
+    print("    m_nTickBase:        " + hex(nv.m_nTickBase))
+    print("    m_vecPunch:         " + hex(nv.m_vecPunch))
+    print("    m_iTeamNum:         " + hex(nv.m_iTeamNum))
+    print("    m_vecOrigin:        " + hex(nv.m_vecOrigin))
+    print("    m_hActiveWeapon:    " + hex(nv.m_hActiveWeapon))
+    print("    m_iShotsFired:      " + hex(nv.m_iShotsFired))
+    print("    m_iCrossHairID:     " + hex(nv.m_iCrossHairID))
+    print("    m_dwBoneMatrix:     " + hex(nv.m_dwBoneMatrix))
+    print("[*]Info")
+    print("    Creator:            github.com/ekknod")
 
     while mem.exists() and not InputSystem.is_button_down(g_exit_key):
         libc.usleep(1000)
