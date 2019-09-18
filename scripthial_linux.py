@@ -86,52 +86,54 @@ class Process:
         return 0
 
     @staticmethod
-    def get_process_base(process_id, skip=True):
-        result = 0
-        file = open('/proc/' + process_id + '/maps')
-        for i in file:
-            if i.find('gnu/ld-') != -1:
-                result = int(i[0:i.index('-')], 16)
-                if skip:
-                    break
-        return result
+    def get_process_base(process_id):
+        maps = open("/proc/" + str(process_id) + "/maps")
+        for i in maps:
+            return int(i[0:i.index('-')], 16)
+
+    def __get_elf_address(self, base, tag):
+        a0 = base + self.read_i32(base + 0x20)
+        for a1 in range(0, self.read_i16(base + 0x38)):
+            a2 = 56 * a1 + a0
+            if self.read_i32(a2) == tag:
+                return a2
+        return 0
+
+    def get_process_maps(self, pid):
+        a0 = self.get_process_base(pid)
+        a1 = self.__get_elf_address(a0, 2)
+        a2 = self.__get_elf_address(a0, 1)
+        a2 = a0 - self.read_i64(a2 + 0x10)
+        a2 = self.read_i64(a1 + 0x10) + a2
+        while self.read_i64(a2) != 0:
+            if self.read_i64(a2) == 3:
+                a3 = self.read_i64(a2 + 8)
+                a4 = self.read_i64(a3 + 8)
+                return a4
+            a2 = a2 + 8
+        return 0
 
     def __init__(self, process_name):
         pid = self.get_process_id(process_name)
         if pid == 0:
             raise Exception('[!]Process::get_process_id')
-
-        self.maps = self.get_process_base(pid, False)
-        if self.maps == 0:
-            raise Exception('[!]Process::get_process_maps')
-
-        self.dir = '/proc/' + pid + '/mem'
+        self.dir = "/proc/" + pid + "/mem"
         self.handle = os.open(self.dir, os.O_RDWR)
-        if self.handle == -1:
-            raise Exception('[!]Process::open')
-
-        if self.read_i8(self.get_process_base(pid) + 0x12) == 62:
-            self.wow64 = False
-            self.maps = self.read_i64(self.maps + 0x60)
-        else:
-            self.wow64 = True
-            self.maps = self.read_i32(self.maps + 0x40)
+        self.maps = self.get_process_maps(pid)
 
     def __del__(self):
-        if self.handle != -1:
-            libc.close(self.handle)
+        os.close(self.handle)
 
     def exists(self):
         return os.access(self.dir, os.F_OK)
 
     def get_library(self, name):
         maps = self.maps
-        offsets = [0x0C, 0x04] if self.wow64 else [0x18, 0x08]
         while 1:
-            maps = self.read_i64(maps + offsets[0], offsets[1])
+            maps = self.read_i64(maps + 0x18, 8)
             if maps == 0:
                 break
-            temp = self.read_i64(maps + offsets[1], offsets[1])
+            temp = self.read_i64(maps + 0x08, 8)
             if temp == 0:
                 continue
             library_name = self.read_string(temp, 256)
@@ -142,19 +144,18 @@ class Process:
     def get_export(self, library, name):
         if library == 0:
             return 0
-        offsets = [0x20, 0x10, 0x04] if self.wow64 else [0x40, 0x18, 0x08]
-        str_tab = self.read_i64(library + offsets[0] + 5 * offsets[2], offsets[2])
-        str_tab = self.read_i64(str_tab + offsets[2], offsets[2])
-        sym_tab = self.read_i64(library + offsets[0] + 6 * offsets[2], offsets[2])
-        sym_tab = self.read_i64(sym_tab + offsets[2], offsets[2])
+        str_tab = self.read_i64(library + 0x40 + 5 * 8)
+        str_tab = self.read_i64(str_tab + 8)
+        sym_tab = self.read_i64(library + 0x40 + 6 * 8)
+        sym_tab = self.read_i64(sym_tab + 8)
         st_name = 1
-        sym_tab += offsets[1]
+        sym_tab += 0x18
         while st_name != 0:
             sym_name = self.read_string(str_tab + st_name)
             if sym_name == name.encode('ascii', 'ignore'):
-                sym_tab = self.read_i64(sym_tab + offsets[2], offsets[2])
-                return sym_tab + self.read_i64(library, offsets[2])
-            sym_tab += offsets[1]
+                sym_tab = self.read_i64(sym_tab + 8)
+                return sym_tab + self.read_i64(library)
+            sym_tab += 0x18
             st_name = self.read_i32(sym_tab)
         return 0
 
@@ -190,8 +191,7 @@ class Process:
 
     def read_i16(self, address, length=2):
         buffer = c_int16()
-        if libc.pread(self.handle, pointer(buffer), length, c_long(address)) == -1:
-            return -1
+        libc.pread(self.handle, pointer(buffer), length, c_long(address))
         return buffer.value
 
     def write_i16(self, address, value):
