@@ -385,6 +385,7 @@ class NetVarList:
                 "x????xxx????xxxxxx")
             temp = mem.read_absolute(temp, 1, 5)
             self.dwGlowObjectManager = mem.read_absolute(temp + 0x0B, 1, 5)
+            self.dwGlowPointer = mem.read_i64(self.dwGlowObjectManager)
 
 
 class Player:
@@ -689,21 +690,20 @@ if __name__ == "__main__":
                 fl_sensitivity = _sensitivity.get_float()
                 view_angle = Engine.get_view_angles()
                 if g_glow:
-                    glow_ptr = mem.read_i64(nv.dwGlowObjectManager)
                     for i in range(0, mem.read_i32(nv.dwGlowObjectManager + 0x10)):
                         index = 0x40 * i
-                        entity = Player(mem.read_i64(glow_ptr + index))
+                        entity = Player(mem.read_i64(nv.dwGlowPointer + index))
                         if not entity.is_valid():
                             continue
                         if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
                             continue
                         entity_health = entity.get_health() / 100.0
-                        mem.write_float(glow_ptr + index + 0x08, 1.0 - entity_health)  # r
-                        mem.write_float(glow_ptr + index + 0x0C, entity_health)        # g
-                        mem.write_float(glow_ptr + index + 0x10, 0.0)                  # b
-                        mem.write_float(glow_ptr + index + 0x14, 0.8)                  # a
-                        mem.write_i8(glow_ptr + index + 0x28, 1)
-                        mem.write_i8(glow_ptr + index + 0x29, 0)
+                        mem.write_float(nv.dwGlowPointer + index + 0x08, 1.0 - entity_health)  # r
+                        mem.write_float(nv.dwGlowPointer + index + 0x0C, entity_health)        # g
+                        mem.write_float(nv.dwGlowPointer + index + 0x10, 0.0)                  # b
+                        mem.write_float(nv.dwGlowPointer + index + 0x14, 0.8)                  # a
+                        mem.write_i8(nv.dwGlowPointer + index + 0x28, 1)
+                        mem.write_i8(nv.dwGlowPointer + index + 0x29, 0)
                 if InputSystem.is_button_down(g_triggerbot_key):
                     cross_id = self.get_cross_index()
                     if cross_id == 0:
