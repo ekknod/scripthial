@@ -65,7 +65,7 @@ class MouseInput:
         device_name = 'event-mouse'
         for device in os.listdir('/dev/input/by-id/'):
             if device[-device_name.__len__():] == device_name:
-                self.handle = libc.open('/dev/input/by-id/' + device, 1)
+                self.handle = os.open('/dev/input/by-id/' + device, os.O_WRONLY)
                 break
         if self.handle == -1:
             raise Exception('[!]Input::__init__')
@@ -130,7 +130,7 @@ class Process:
             raise Exception('[!]Process::get_process_maps')
 
         self.dir = '/proc/' + pid + '/mem'
-        self.handle = libc.open(self.dir, 2)
+        self.handle = os.open(self.dir, os.O_RDWR)
         if self.handle == -1:
             raise Exception('[!]Process::open')
 
@@ -159,7 +159,7 @@ class Process:
             if temp == 0:
                 continue
             library_name = self.read_string(temp, 256)
-            if library_name[-name.__len__():] == name:
+            if library_name[-name.__len__():] == name.encode('ascii', 'ignore'):
                 return maps
         return 0
 
@@ -175,7 +175,7 @@ class Process:
         sym_tab += offsets[1]
         while st_name != 0:
             sym_name = self.read_string(str_tab + st_name)
-            if sym_name == name:
+            if sym_name == name.encode('ascii', 'ignore'):
                 sym_tab = self.read_i64(sym_tab + offsets[2], offsets[2])
                 return sym_tab + self.read_i64(library, offsets[2])
             sym_tab += offsets[1]
@@ -266,7 +266,7 @@ class InterfaceTable:
     def get_interface(self, name):
         a0 = self.table_list
         while a0 != 0:
-            if name == mem.read_string(mem.read_i64(a0 + 0x08))[0:-3]:
+            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a0 + 0x08))[0:-3]:
                 a0 = mem.read_i64(a0)
                 if mem.read_i8(a0) != 0x48:
                     a0 += mem.read_i32(a0 + 1 + 3) + 8
@@ -284,7 +284,7 @@ class NetVarTable:
         a0 = mem.read_i64(mem.read_i64(a0 + mem.read_i32(a0 + 0 + 3) + 7))
         while a0 != 0:
             a1 = mem.read_i64(a0 + 0x18)
-            if name == mem.read_string(mem.read_i64(a1 + 0x18)):
+            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a1 + 0x18)):
                 self.table = a1
                 break
             a0 = mem.read_i64(a0 + 0x20)
@@ -307,7 +307,7 @@ class NetVarTable:
                 a5 = self.__get_offset(a4, name)
                 if a5 != 0:
                     a0 += a3 + a5
-            if name == mem.read_string(mem.read_i64(a2)):
+            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a2)):
                 return a3 + a0
         return a0
 
@@ -317,7 +317,7 @@ class ConVar:
         self.address = 0
         a0 = mem.read_i64(mem.read_i64(mem.read_i64(vt.cvar.table + 0x70)) + 0x8)
         while a0 != 0:
-            if name == mem.read_string(mem.read_i64(a0 + 0x18)):
+            if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i64(a0 + 0x18)):
                 self.address = a0
                 break
             a0 = mem.read_i64(a0 + 0x8)
