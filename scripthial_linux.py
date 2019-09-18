@@ -7,7 +7,7 @@ libc = CDLL('libc.so.6')
 #
 
 
-g_glow = True
+g_glow = False
 g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
