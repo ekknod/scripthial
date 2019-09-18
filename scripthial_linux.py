@@ -158,6 +158,27 @@ class Process:
             st_name = self.read_i32(sym_tab)
         return 0
 
+    def find_pattern(self, start, library_name, pattern, mask):
+        a0 = self.get_library(library_name)
+        a1 = self.read_i64(a0)              # base
+        a2 = a1 + self.read_i32(a1 + 0x20)  # Elf64_Phdr
+        a3 = self.read_i32(a2 + 0x10)       # p_vaddr
+        a4 = self.read_i32(a2 + 0x28)       # p_memsz
+
+        # a5 = mem.read_string(a1 + a3)
+        a5 = create_string_buffer(a4)
+        libc.pread(self.handle, pointer(a5), a4, c_long(a1 + a3))
+        a5 = cast(a5, POINTER(c_uint8))
+        for index in range(start, a4):
+            a6 = 0
+            for a7 in range(0, pattern.__len__()):
+                if mask[a7] == 'x' and a5[index + a7] != pattern[a7]:
+                    break
+                a6 = a6 + 1
+            if a6 == pattern.__len__():
+                return a1 + a3 + index
+        return 0
+
     def read_i8(self, address, length=1):
         buffer = c_int8()
         libc.pread(self.handle, pointer(buffer), length, c_long(address))
@@ -326,8 +347,6 @@ class InterfaceList:
         self.input = table.get_interface('InputSystemVersion')
 
 
-# glow sig: E8 ? ? ? ? 48 8B 3D ? ? ? ? BE 01 00 00 00 C7
-# x????xxx????xxxxxx
 class NetVarList:
     @staticmethod
     def __get_entity_list():
@@ -354,7 +373,6 @@ class NetVarList:
         self.m_hActiveWeapon = table.get_offset('m_hActiveWeapon')
         self.m_iShotsFired = table.get_offset('m_iShotsFired')
         self.m_iCrossHairID = table.get_offset('m_bHasDefuser') + 0x78
-        self.m_iGlowIndex = table.get_offset('m_flFlashDuration') + 0x34
         table = NetVarTable('DT_BaseAnimating')
         self.m_dwBoneMatrix = table.get_offset('m_nForceBone') + 0x2C
         table = NetVarTable('DT_BaseAttributableItem')
@@ -369,6 +387,13 @@ class NetVarList:
         self.dwInput = mem.read_absolute(vt.client.function(16), 3, 7)
         self.dwInput = mem.read_i64(mem.read_i64(self.dwInput))
         self.dwLastCommand = 0x8E34
+        if g_glow:
+            # 0x6A5C30 = hardcoded relocation end
+            temp = mem.find_pattern(0x6A5C30, "client_panorama_client.so",
+                b'\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7',
+                "x????xxx????xxxxxx")
+            temp = mem.read_absolute(temp, 1, 5)
+            self.dwGlowObjectManager = mem.read_absolute(temp + 0x0B, 1, 5)
 
 
 class Player:
@@ -673,21 +698,21 @@ if __name__ == "__main__":
                 fl_sensitivity = _sensitivity.get_float()
                 view_angle = Engine.get_view_angles()
                 if g_glow:
-                    # glow_pointer = mem.read_i64(nv.dwGlowObjectManager)
-                    for i in range(0, Engine.get_max_clients()):
-                        entity = Entity.get_client_entity(i)
+                    glow_ptr = mem.read_i64(nv.dwGlowObjectManager)
+                    for i in range(0, mem.read_i32(nv.dwGlowObjectManager + 0x10)):
+                        index = 0x40 * i
+                        entity = Player(mem.read_i64(glow_ptr + index))
                         if not entity.is_valid():
                             continue
                         if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
                             continue
                         entity_health = entity.get_health() / 100.0
-                        index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
-                #         mem.write_float(glow_pointer + index + 0x04, 1.0 - entity_health)  # r
-                #         mem.write_float(glow_pointer + index + 0x08, entity_health)        # g
-                #         mem.write_float(glow_pointer + index + 0x0C, 0.0)                  # b
-                #         mem.write_float(glow_pointer + index + 0x10, 0.8)                  # a
-                #         mem.write_i8(glow_pointer + index + 0x24, 1)
-                #         mem.write_i8(glow_pointer + index + 0x25, 0)
+                        mem.write_float(glow_ptr + index + 0x04 + 4, 1.0 - entity_health)  # r
+                        mem.write_float(glow_ptr + index + 0x08 + 4, entity_health)        # g
+                        mem.write_float(glow_ptr + index + 0x0C + 4, 0.0)                  # b
+                        mem.write_float(glow_ptr + index + 0x10 + 4, 0.8)                  # a
+                        mem.write_i8(glow_ptr + index + 0x24 + 4, 1)
+                        mem.write_i8(glow_ptr + index + 0x25 + 4, 0)
                 if InputSystem.is_button_down(g_triggerbot_key):
                     cross_id = self.get_cross_index()
                     if cross_id == 0:
