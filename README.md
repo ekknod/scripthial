@@ -20,6 +20,6 @@ https://www.microsoft.com/en-us/p/python-37/9nj46sx7x90p?activetab=pivot:overvie
 * git clone https://github.com/ekknod/scripthial
 * cd scripthial
 * open csgo
-* [LINUX] sudo python scripthial_linux.py
+* [LINUX] sudo python3 scripthial_linux.py
 * [WINDOWS] python scripthial_windows.py
 
