@@ -83,10 +83,12 @@ class Process:
         raise Exception("Process [" + process_name + "] not found!")
 
     @staticmethod
-    def get_process_base(process_id):
-        maps = open("/proc/" + str(process_id) + "/maps")
-        for i in maps:
-            return int(i[0:i.index('-')], 16)
+    def get_process_base(process_id, process_name):
+        file = open('/proc/' + str(process_id) + '/maps')
+        for i in file:
+            if i.find(process_name) != -1:
+                return int(i[0:i.index('-')], 16)
+        return 0
 
     def __get_elf_address(self, base, tag):
         a0 = base + self.read_i32(base + 0x20)
@@ -96,8 +98,8 @@ class Process:
                 return a2
         raise Exception("Process::__get_elf_address")
 
-    def get_process_maps(self, pid):
-        a0 = self.get_process_base(pid)
+    def get_process_maps(self, pid, name):
+        a0 = self.get_process_base(pid, name)
         a1 = self.__get_elf_address(a0, 2)
         a2 = self.__get_elf_address(a0, 1)
         a2 = a0 - self.read_i64(a2 + 0x10)
@@ -115,7 +117,7 @@ class Process:
         pid = self.get_process_id(process_name)
         self.dir = "/proc/" + pid + "/mem"
         self.handle = os.open(self.dir, os.O_RDWR)
-        self.maps = self.get_process_maps(pid)
+        self.maps = self.get_process_maps(pid, process_name)
 
     def __del__(self):
         if self.handle != -1:
