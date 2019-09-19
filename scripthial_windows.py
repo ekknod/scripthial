@@ -158,7 +158,7 @@ class Process:
             if str(val).lower() == name.lower():
                 return self.read_i64(a1 + a0[4], a0[0])
             a1 = self.read_i64(a1, a0[0])
-        raise Exception("[!]Process::get_module")
+        raise Exception("Module [" + name + "] not found!")
 
     def get_export(self, module, name):
         if module == 0:
@@ -172,7 +172,7 @@ class Process:
                 a2 = self.read_i16(module + a1[3] + (a1[0] * 2))
                 a3 = self.read_i32(module + a1[1] + (a2 * 4))
                 return module + a3
-        raise Exception("[!]Process::get_export")
+        raise Exception("Export [" + name + "] not found!")
 
     def find_pattern(self, module_name, pattern, mask):
         a0 = self.get_module(module_name)
@@ -209,7 +209,7 @@ class InterfaceTable:
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i32(a0 + 0x4), 120)[0:-3]:
                 return VirtualTable(mem.read_i32(mem.read_i32(a0) + 1))
             a0 = mem.read_i32(a0 + 0x8)
-        raise Exception('[!]InterfaceTable::get_interface')
+        raise Exception("Interface [" + name + "] not found!")
 
 
 class NetVarTable:
@@ -220,14 +220,14 @@ class NetVarTable:
             a1 = mem.read_i32(a0 + 0x0C)
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i32(a1 + 0x0C), 120):
                 self.table = a1
+                return
             a0 = mem.read_i32(a0 + 0x10)
-        if self.table == 0:
-            raise Exception('[!]NetVarTable::__init__')
+        raise Exception("NetVarTable [" + name + "] not found!")
 
     def get_offset(self, name):
         offset = self.__get_offset(self.table, name)
         if offset == 0:
-            raise Exception('[!]NetVarTable::get_offset')
+            raise Exception("Offset [" + name + "] not found!")
         return offset
 
     def __get_offset(self, address, name):
@@ -252,10 +252,9 @@ class ConVar:
         while a0 != 0:
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i32(a0 + 0x0C)):
                 self.address = a0
-                break
+                return
             a0 = mem.read_i32(a0 + 0x4)
-        if self.address == 0:
-            raise Exception('[!]ConVar not found!')
+        raise Exception("ConVar [" + name + "] not found!")
 
     def get_int(self):
         a0 = c_int32()
