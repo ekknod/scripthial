@@ -5,8 +5,8 @@ windows/linux python aimassist
 https://github.com/colinmorris/char-rbm/blob/master/samples/repos_unique.txt#L9698
 
 # python for windows
-win10: https://www.microsoft.com/en-us/p/python-37/9nj46sx7x90p?activetab=pivot:overviewtab
-win7-8.1: https://www.python.org/ftp/python/3.7.4/python-3.7.4-amd64.exe
+* win10: https://www.microsoft.com/en-us/p/python-37/9nj46sx7x90p?activetab=pivot:overviewtab
+* win7-8.1: https://www.python.org/ftp/python/3.7.4/python-3.7.4-amd64.exe
 
 # features
 * external interfaces
