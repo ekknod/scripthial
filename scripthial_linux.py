@@ -13,7 +13,7 @@ g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
 g_aimbot_fov = 1.0 / 180.0
-g_aimbot_smooth = 5.0
+g_aimbot_smooth = 4.5
 g_aimbot_key = 107
 g_triggerbot_key = 111
 g_exit_key = 72
@@ -39,9 +39,9 @@ class MouseInput:
     def __init__(self):
         self.handle = -1
         device_name = "event-mouse"
-        for device in os.listdir("/dev/input/by-id/"):
+        for device in os.listdir("/dev/input/by-path/"):
             if device[-device_name.__len__():] == device_name:
-                self.handle = os.open("/dev/input/by-id/" + device, os.O_WRONLY)
+                self.handle = os.open("/dev/input/by-path/" + device, os.O_WRONLY)
                 return
         raise Exception("Input [" + device_name + "] not found!")
 
@@ -632,7 +632,7 @@ def aim_at_target(sensitivity, va, angle):
     else:
         sx = x
         sy = y
-    if _current_tick - g_previous_tick > 0:
+    if g_current_tick - g_previous_tick > 0:
         g_previous_tick = g_current_tick
         mouse.move(int(sx), int(sy))
 
@@ -714,7 +714,7 @@ if __name__ == "__main__":
                     if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
                         mouse.click()
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
-                    _current_tick = self.get_tick_count()
+                    g_current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
                         continue
                     aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
