@@ -562,7 +562,7 @@ def aim_at_target(sensitivity, va, angle):
     else:
         sx = x
         sy = y
-    if _current_tick - g_previous_tick > 0:
+    if g_current_tick - g_previous_tick > 0:
         g_previous_tick = g_current_tick
         u32.mouse_event(0x0001, int(sx), int(sy), 0, 0)
 
@@ -644,7 +644,7 @@ if __name__ == "__main__":
                         u32.mouse_event(0x0002, 0, 0, 0, 0)
                         u32.mouse_event(0x0004, 0, 0, 0, 0)
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
-                    _current_tick = self.get_tick_count()
+                    g_current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
                         continue
                     aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
