@@ -365,7 +365,7 @@ class NetVarList:
         table = NetVarTable("DT_CSPlayer")
         self.m_hActiveWeapon = table.get_offset("m_hActiveWeapon")
         self.m_iShotsFired = table.get_offset("m_iShotsFired")
-        self.m_iCrossHairID = table.get_offset("m_bHasDefuser") + 0x78
+        self.m_iCrossHairID = table.get_offset("m_bHasDefuser") + 0x7C
         table = NetVarTable("DT_BaseAnimating")
         self.m_dwBoneMatrix = table.get_offset("m_nForceBone") + 0x2C
         table = NetVarTable("DT_BaseAttributableItem")
