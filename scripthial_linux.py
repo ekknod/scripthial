@@ -7,7 +7,7 @@ libc = CDLL("libc.so.6")
 #
 
 
-g_glow = False
+g_glow = True
 g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
@@ -731,4 +731,7 @@ if __name__ == "__main__":
                     g_old_punch = current_punch
             except ValueError:
                 continue
+        else:
+            g_previous_tick = 0
+            target_set(Player(0))
 

@@ -9,7 +9,7 @@ u32 = windll.user32
 #
 
 
-g_glow = False
+g_glow = True
 g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
@@ -642,6 +642,7 @@ if __name__ == "__main__":
                     cross_target = Entity.get_client_entity(cross_id - 1)
                     if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
                         u32.mouse_event(0x0002, 0, 0, 0, 0)
+                        k32.Sleep(50)
                         u32.mouse_event(0x0004, 0, 0, 0, 0)
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
                     g_current_tick = self.get_tick_count()
@@ -663,3 +664,7 @@ if __name__ == "__main__":
                     g_old_punch = current_punch
             except ValueError:
                 continue
+        else:
+            g_previous_tick = 0
+            target_set(Player(0))
+
