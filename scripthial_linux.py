@@ -15,7 +15,7 @@ g_aimbot_rcs = True
 g_aimbot_head = False
 g_aimbot_fov = 2.0 / 180.0
 g_aimbot_smooth = 4.5
-g_aimbot_key = 108
+g_aimbot_key = 107
 g_triggerbot_key = 111
 g_exit_key = 72
 
@@ -383,7 +383,7 @@ class NetVarList:
         self.dwLastCommand = 0x8E34
         if g_glow:
             # 0x6A5C30 = hardcoded relocation end
-            temp = mem.find_pattern(0, "client_panorama_client.so",
+            temp = mem.find_pattern(0x6A5C30, "client_panorama_client.so",
                 b"\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7",
                 "x????xxx????xxxxxx")
             temp = mem.read_absolute(temp, 1, 5)
@@ -640,6 +640,14 @@ def aim_at_target(sensitivity, va, angle):
         mouse.move(int(sx), int(sy))
 
 
+def get_crosshair_target(player):
+    cross_id = player.get_cross_index()
+    if cross_id == 0:
+        return False
+    cross_target = Entity.get_client_entity(cross_id)
+    return player.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0
+
+
 if __name__ == "__main__":
     global mouse
     global mem
@@ -709,13 +717,8 @@ if __name__ == "__main__":
                         mem.write_float(nv.dwGlowPointer + index + 0x14, 0.8)                  # a
                         mem.write_i8(nv.dwGlowPointer + index + 0x28, 1)
                         mem.write_i8(nv.dwGlowPointer + index + 0x29, 0)
-                if InputSystem.is_button_down(g_triggerbot_key):
-                    cross_id = self.get_cross_index()
-                    if cross_id == 0:
-                        continue
-                    cross_target = Entity.get_client_entity(cross_id)
-                    if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
-                        mouse.click()
+                if InputSystem.is_button_down(g_triggerbot_key) and get_crosshair_target(self):
+                    mouse.click()
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
                     g_current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
