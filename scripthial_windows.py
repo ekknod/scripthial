@@ -608,7 +608,7 @@ if __name__ == "__main__":
     print('    m_dwBoneMatrix:     ' + hex(nv.m_dwBoneMatrix))
     print('[*]Info')
     print('    Creator:            github.com/ekknod')
-    previous_tick = 0
+    print('    Websites:           https://ekknod.xyz')
     while mem.is_running() and not InputSystem.is_button_down(g_exit_key):
         k32.Sleep(1)
         if Engine.is_in_game():
@@ -616,9 +616,6 @@ if __name__ == "__main__":
                 self = Entity.get_client_entity(Engine.get_local_player())
                 fl_sensitivity = _sensitivity.get_float()
                 view_angle = Engine.get_view_angles()
-                # weapon_id = self.get_weapon_id()
-                # if weapon_id == 42 or weapon_id == 49:
-                #    continue
                 if g_glow:
                     glow_pointer = mem.read_i32(nv.dwGlowObjectManager)
                     for i in range(0, Engine.get_max_clients()):

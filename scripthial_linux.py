@@ -7,14 +7,15 @@ libc = CDLL("libc.so.6")
 #
 
 
+g_horizontal_only = True
 g_glow = True
 g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
-g_aimbot_fov = 1.0 / 180.0
+g_aimbot_fov = 2.0 / 180.0
 g_aimbot_smooth = 4.5
-g_aimbot_key = 107
+g_aimbot_key = 108
 g_triggerbot_key = 111
 g_exit_key = 72
 
@@ -62,7 +63,7 @@ class MouseInput:
 
     def click(self):
         self.__send_input(0x01, 0x110, 1)
-        libc.usleep(10000)
+        libc.usleep(50000)
         self.__send_input(0x01, 0x110, 0)
 
     def move(self, x, y):
@@ -382,7 +383,7 @@ class NetVarList:
         self.dwLastCommand = 0x8E34
         if g_glow:
             # 0x6A5C30 = hardcoded relocation end
-            temp = mem.find_pattern(0x6A5C30, "client_panorama_client.so",
+            temp = mem.find_pattern(0, "client_panorama_client.so",
                 b"\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7",
                 "x????xxx????xxxxxx")
             temp = mem.read_absolute(temp, 1, 5)
@@ -632,6 +633,8 @@ def aim_at_target(sensitivity, va, angle):
     else:
         sx = x
         sy = y
+    if g_horizontal_only:
+        sy = 0
     if g_current_tick - g_previous_tick > 0:
         g_previous_tick = g_current_tick
         mouse.move(int(sx), int(sy))
@@ -683,7 +686,7 @@ if __name__ == "__main__":
     print("    m_dwBoneMatrix:     " + hex(nv.m_dwBoneMatrix))
     print("[*]Info")
     print("    Creator:            github.com/ekknod")
-
+    print("    Websites:           https://ekknod.xyz")
     while mem.exists() and not InputSystem.is_button_down(g_exit_key):
         libc.usleep(1000)
         if Engine.is_in_game():
