@@ -9,7 +9,7 @@ libc = CDLL("libc.so.6")
 
 g_horizontal_only = True
 g_glow = True
-g_rcs = False
+g_rcs = True
 g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
@@ -341,6 +341,7 @@ class InterfaceList:
         self.input = table.get_interface("InputSystemVersion")
 
 
+
 class NetVarList:
     @staticmethod
     def __get_entity_list():
@@ -349,9 +350,11 @@ class NetVarList:
     @staticmethod
     def __get_client_state():
         a0 = vt.engine.function(18)
-        a1 = mem.read_i32(a0 + 0x11 + 1) + 0x16
-        a2 = mem.read_i32(a0 + a1 + 5 + 3) + 0x0C
-        return mem.read_i64(a0 + a1 + a2 + 0x08) + 0x08
+        a1 = mem.read_i32(a0 + 0x11 + 0x1) + 0x16 # call 0x35da0
+        a2 = mem.read_i32(a0 + a1 + 5 + 3) + 0x0C # lea rax, [rip+0x2b21c84]
+        a2 = mem.read_i64(a0 + a1 + a2 + 0x08)    # mov rax, QWORD PTR[rax+rdi+0x8]
+        a2 += 0x08                                # add rax, 0x8
+        return a2                                 # ret
 
     def __init__(self):
         table = NetVarTable("DT_BasePlayer")
@@ -713,8 +716,8 @@ if __name__ == "__main__":
                         entity_health = entity.get_health() / 100.0
                         mem.write_float(nv.dwGlowPointer + index + 0x08, 1.0 - entity_health)  # r
                         mem.write_float(nv.dwGlowPointer + index + 0x0C, entity_health)        # g
-                        mem.write_float(nv.dwGlowPointer + index + 0x10, 0.0)                  # b
-                        mem.write_float(nv.dwGlowPointer + index + 0x14, 0.8)                  # a
+                        mem.write_float(nv.dwGlowPointer + index + 0x10, 1.0)                  # b
+                        mem.write_float(nv.dwGlowPointer + index + 0x14, 0.5)                  # a
                         mem.write_i8(nv.dwGlowPointer + index + 0x28, 1)
                         mem.write_i8(nv.dwGlowPointer + index + 0x29, 0)
                 if InputSystem.is_button_down(g_triggerbot_key) and get_crosshair_target(self):
