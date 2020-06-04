@@ -330,7 +330,7 @@ class ConVar:
 
 class InterfaceList:
     def __init__(self):
-        table = InterfaceTable("client_panorama_client.so")
+        table = InterfaceTable("client_client.so")
         self.client = table.get_interface("VClient")
         self.entity = table.get_interface("VClientEntityList")
         table = InterfaceTable("engine_client.so")
@@ -386,7 +386,7 @@ class NetVarList:
         self.dwLastCommand = 0x8E34
         if g_glow:
             # 0x6A5C30 = hardcoded relocation end
-            temp = mem.find_pattern(0x6A5C30, "client_panorama_client.so",
+            temp = mem.find_pattern(0x6A5C30, "client_client.so",
                 b"\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7",
                 "x????xxx????xxxxxx")
             temp = mem.read_absolute(temp, 1, 5)
