@@ -271,7 +271,7 @@ class ConVar:
 
 class InterfaceList:
     def __init__(self):
-        table = InterfaceTable('client_panorama.dll')
+        table = InterfaceTable('client.dll')
         self.client = table.get_interface('VClient')
         self.entity = table.get_interface('VClientEntityList')
         table = InterfaceTable('engine.dll')
@@ -315,7 +315,7 @@ class NetVarList:
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x07)
         self.dwButton = mem.read_i32(vt.input.function(15) + 0x21D)
         if g_glow:
-            self.dwGlowObjectManager = mem.find_pattern("client_panorama.dll",
+            self.dwGlowObjectManager = mem.find_pattern("client.dll",
                     b'\xA1\x00\x00\x00\x00\xA8\x01\x75\x4B', "x????xxxx")
             self.dwGlowObjectManager = mem.read_i32(self.dwGlowObjectManager + 1) + 4
 
