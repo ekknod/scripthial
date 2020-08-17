@@ -129,6 +129,7 @@ class Process:
 
     def get_library(self, name):
         maps = self.maps
+        mod  = 0
         while 1:
             maps = self.read_i64(maps + 0x18, 8)
             if maps == 0:
@@ -138,8 +139,10 @@ class Process:
                 continue
             library_name = self.read_string(temp, 256)
             if library_name[-name.__len__():] == name.encode("ascii", "ignore"):
-                return maps
-        raise Exception("Library [" + name + "] not found!")
+                mod = maps
+        if mod == 0:
+            raise Exception("Library [" + name + "] not found!")
+        return mod
 
     def get_export(self, library, name):
         if library == 0:
@@ -262,7 +265,7 @@ class InterfaceTable:
             if name.encode("ascii", "ignore") == mem.read_string(mem.read_i64(a0 + 0x08))[0:-3]:
                 a0 = mem.read_i64(a0)
                 if mem.read_i8(a0) != 0x48:
-                    a0 += mem.read_i32(a0 + 1 + 3) + 8
+                    a0 = a0 + mem.read_i32(a0 + 1 + 3) + 8
                 else:
                     a0 = mem.read_i64(mem.read_i64(a0 + (mem.read_i32(a0 + 0 + 3) + 7)))
                 return VirtualTable(a0)
