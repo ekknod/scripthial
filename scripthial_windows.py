@@ -626,12 +626,12 @@ if __name__ == "__main__":
                             continue
                         entity_health = entity.get_health() / 100.0
                         index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
-                        mem.write_float(glow_pointer + index + 0x04, 1.0 - entity_health)  # r
-                        mem.write_float(glow_pointer + index + 0x08, entity_health)        # g
-                        mem.write_float(glow_pointer + index + 0x0C, 0.0)                  # b
-                        mem.write_float(glow_pointer + index + 0x10, 0.8)                  # a
-                        mem.write_i8(glow_pointer + index + 0x24, 1)
-                        mem.write_i8(glow_pointer + index + 0x25, 0)
+                        mem.write_float(glow_pointer + index + 0x08, 1.0 - entity_health)  # r
+                        mem.write_float(glow_pointer + index + 0x0C, entity_health)        # g
+                        mem.write_float(glow_pointer + index + 0x10, 0.0)                  # b
+                        mem.write_float(glow_pointer + index + 0x14, 0.8)                  # a
+                        mem.write_i8(glow_pointer + index + 0x28, 1)
+                        mem.write_i8(glow_pointer + index + 0x29, 0)
                 if InputSystem.is_button_down(g_triggerbot_key):
                     cross_id = self.get_cross_index()
                     if cross_id == 0:
