@@ -1,7 +1,7 @@
 import platform
 import math
 from ctypes import *
-nt = windll.ntdll
+ntdll = windll.ntdll
 k32 = windll.kernel32
 u32 = windll.user32
 #
@@ -9,8 +9,8 @@ u32 = windll.user32
 #
 
 
-g_glow = False
-g_rcs = False
+g_glow = True
+g_rcs = True
 g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
@@ -29,64 +29,56 @@ class Vector3(Structure):
     _fields_ = [('x', c_float), ('y', c_float), ('z', c_float)]
 
 
-def array_to_data(address):
-    r = 0
-    for j in bytearray(reversed(address)):
-        r = (r << 8) + j
-    return r
-
-
-class ProcessList:
-    def __init__(self):
-        length = c_uint()
-        self.snap = create_string_buffer(8)
-        nt.NtQuerySystemInformation(57, self.snap, 0x188, pointer(length))
-        self.snap = create_string_buffer(length.value + 8192)
-        if nt.NtQuerySystemInformation(57, self.snap, length.value + 8192, 0) != 0:
-            raise Exception("[!]ProcessList::__init__")
-        self.pos = 0
-
-    def next(self):
-        temp = array_to_data(self.snap[self.pos:self.pos + 4])
-        if temp != 0:
-            self.pos = temp + self.pos
-            return True
-        return False
-
-    def pid(self):
-        return int(array_to_data(self.snap[self.pos + 0x128:self.pos + 0x130]))
-
-    def wow64(self):
-        return array_to_data(self.snap[self.pos + 0x160:self.pos + 0x168]) <= 0xffffffff
-
-    def teb(self):
-        return c_int64(array_to_data(self.snap[self.pos + 0x168:self.pos + 0x170])).value
-
-    def name(self):
-        name = create_unicode_buffer(120)
-        nt.memcpy(name, c_int64(array_to_data(self.snap[self.pos + 0x40:self.pos + 0x48])), 120)
-        return name.value
+class PROCESSENTRY32(Structure):
+    _fields_ = [
+        ("dwSize", c_uint32),
+        ("cntUsage", c_uint32),
+        ("th32ProcessID", c_uint32),
+        ("th32DefaultHeapID", c_uint64),
+        ("th32ModuleID", c_uint32),
+        ("cntThreads", c_uint32),
+        ("th32ParentProcessID", c_uint32),
+        ("pcPriClassBase", c_uint32),
+        ("dwFlags", c_uint32),
+        ("szExeFile", c_char * 260)
+    ]
 
 
 class Process:
+    @staticmethod
+    def get_process_handle(name):
+        handle = 0
+        entry = PROCESSENTRY32()
+        snap = k32.CreateToolhelp32Snapshot(0x00000002, 0)
+        entry.dwSize = sizeof(PROCESSENTRY32)
+        while k32.Process32Next(snap, pointer(entry)):
+            if entry.szExeFile == name.encode("ascii", "ignore"):
+                handle = k32.OpenProcess(0x430, 0, entry.th32ProcessID)
+                break
+        k32.CloseHandle(snap)
+        return handle
+
+    @staticmethod
+    def get_process_peb(handle, wow64):
+        buffer = (c_uint64 * 6)(0)
+        if wow64:
+            if ntdll.NtQueryInformationProcess(handle, 26, pointer(buffer), 8, 0) == 0:
+                return buffer[0]
+        else:
+            if ntdll.NtQueryInformationProcess(handle, 0, pointer(buffer), 48, 0) == 0:
+                return buffer[1]
+        return 0
+    
     def __init__(self, name):
-        temp = c_uint8()
-        nt.RtlAdjustPrivilege(20, 1, 0, pointer(temp))
-        temp = ProcessList()
-        status = False
-        while temp.next():
-            temp_handle = k32.OpenProcess(0x430, 0, temp.pid())
-            if temp.name() == name:
-                self.mem = temp_handle
-                self.wow64 = temp.wow64()
-                if self.wow64:
-                    self.peb = self.read_i64(temp.teb() + 0x2030, 4)
-                else:
-                    self.peb = self.read_i64(temp.teb() + 0x0060, 8)
-                status = True
-                # break
-        if not status:
-            raise Exception("[!]Process is not running!")
+        self.mem = self.get_process_handle(name)
+        if self.mem == 0:
+            raise Exception("Process [" + name + "] not found!")
+        self.peb = self.get_process_peb(self.mem, True)
+        if self.peb == 0:
+            self.peb = self.get_process_peb(self.mem, False)
+            self.wow64 = False
+        else:
+            self.wow64 = True
 
     def is_running(self):
         buffer = c_uint32()
@@ -95,59 +87,64 @@ class Process:
 
     def read_vec3(self, address):
         buffer = Vector3()
-        nt.NtReadVirtualMemory(self.mem, c_long(address), pointer(buffer), 12, 0)
+        ntdll.NtReadVirtualMemory(self.mem, c_long(address), pointer(buffer), 12, 0)
+        return buffer
+
+    def read_buffer(self, address, length):
+        buffer = (c_uint8 * length)()
+        ntdll.NtReadVirtualMemory(self.mem, address, buffer, length, 0)
         return buffer
 
     def read_string(self, address, length=120):
         buffer = create_string_buffer(length)
-        nt.NtReadVirtualMemory(self.mem, address, buffer, length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, address, buffer, length, 0)
         return buffer.value
 
     def read_unicode(self, address, length=120):
         buffer = create_unicode_buffer(length)
-        nt.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
         return buffer.value
 
     def read_float(self, address, length=4):
         buffer = c_float()
-        nt.NtReadVirtualMemory(self.mem, c_long(address), pointer(buffer), length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, c_long(address), pointer(buffer), length, 0)
         return buffer.value
 
     def read_i8(self, address, length=1):
         buffer = c_uint8()
-        nt.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
         return buffer.value
 
     def read_i16(self, address, length=2):
         buffer = c_uint16()
-        nt.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
         return buffer.value
 
     def read_i32(self, address, length=4):
         buffer = c_uint32()
-        nt.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, address, pointer(buffer), length, 0)
         return buffer.value
 
     def read_i64(self, address, length=8):
         buffer = c_uint64()
-        nt.NtReadVirtualMemory(self.mem, c_uint64(address), pointer(buffer), length, 0)
+        ntdll.NtReadVirtualMemory(self.mem, c_uint64(address), pointer(buffer), length, 0)
         return buffer.value
 
     def write_float(self, address, value):
         buffer = c_float(value)
-        return nt.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 4, 0) == 0
+        return ntdll.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 4, 0) == 0
 
     def write_i8(self, address, value):
         buffer = c_uint8(value)
-        return nt.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 1, 0) == 0
+        return ntdll.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 1, 0) == 0
 
     def write_i16(self, address, value):
         buffer = c_uint16(value)
-        return nt.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 2, 0) == 0
+        return ntdll.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 2, 0) == 0
 
     def write_i64(self, address, value):
         buffer = c_uint64(value)
-        return nt.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 8, 0) == 0
+        return ntdll.NtWriteVirtualMemory(self.mem, address, pointer(buffer), 8, 0) == 0
 
     def get_module(self, name):
         if self.wow64:
@@ -161,7 +158,7 @@ class Process:
             if str(val).lower() == name.lower():
                 return self.read_i64(a1 + a0[4], a0[0])
             a1 = self.read_i64(a1, a0[0])
-        raise Exception("[!]Process::get_module")
+        raise Exception("Module [" + name + "] not found!")
 
     def get_export(self, module, name):
         if module == 0:
@@ -175,15 +172,14 @@ class Process:
                 a2 = self.read_i16(module + a1[3] + (a1[0] * 2))
                 a3 = self.read_i32(module + a1[1] + (a2 * 4))
                 return module + a3
-        raise Exception("[!]Process::get_export")
+        raise Exception("Export [" + name + "] not found!")
 
     def find_pattern(self, module_name, pattern, mask):
         a0 = self.get_module(module_name)
         a1 = self.read_i32(a0 + 0x03C) + a0
         a2 = self.read_i32(a1 + 0x01C)
         a3 = self.read_i32(a1 + 0x02C)
-        a4 = cast(create_string_buffer(a2), POINTER(c_uint8))
-        nt.NtReadVirtualMemory(self.mem, a0 + a3, a4, a2, 0)
+        a4 = self.read_buffer(a0 + a3, a2)
         for a5 in range(0, a2):
             a6 = 0
             for a7 in range(0, pattern.__len__()):
@@ -213,7 +209,7 @@ class InterfaceTable:
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i32(a0 + 0x4), 120)[0:-3]:
                 return VirtualTable(mem.read_i32(mem.read_i32(a0) + 1))
             a0 = mem.read_i32(a0 + 0x8)
-        raise Exception('[!]InterfaceTable::get_interface')
+        raise Exception("Interface [" + name + "] not found!")
 
 
 class NetVarTable:
@@ -224,14 +220,14 @@ class NetVarTable:
             a1 = mem.read_i32(a0 + 0x0C)
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i32(a1 + 0x0C), 120):
                 self.table = a1
+                return
             a0 = mem.read_i32(a0 + 0x10)
-        if self.table == 0:
-            raise Exception('[!]NetVarTable::__init__')
+        raise Exception("NetVarTable [" + name + "] not found!")
 
     def get_offset(self, name):
         offset = self.__get_offset(self.table, name)
         if offset == 0:
-            raise Exception('[!]NetVarTable::get_offset')
+            raise Exception("Offset [" + name + "] not found!")
         return offset
 
     def __get_offset(self, address, name):
@@ -256,27 +252,26 @@ class ConVar:
         while a0 != 0:
             if name.encode('ascii', 'ignore') == mem.read_string(mem.read_i32(a0 + 0x0C)):
                 self.address = a0
-                break
+                return
             a0 = mem.read_i32(a0 + 0x4)
-        if self.address == 0:
-            raise Exception('[!]ConVar not found!')
+        raise Exception("ConVar [" + name + "] not found!")
 
     def get_int(self):
         a0 = c_int32()
         a1 = mem.read_i32(self.address + 0x30) ^ self.address
-        nt.memcpy(pointer(a0), pointer(c_int32(a1)), 4)
+        ntdll.memcpy(pointer(a0), pointer(c_int32(a1)), 4)
         return a0.value
 
     def get_float(self):
         a0 = c_float()
         a1 = mem.read_i32(self.address + 0x2C) ^ self.address
-        nt.memcpy(pointer(a0), pointer(c_int32(a1)), 4)
+        ntdll.memcpy(pointer(a0), pointer(c_int32(a1)), 4)
         return a0.value
 
 
 class InterfaceList:
     def __init__(self):
-        table = InterfaceTable('client_panorama.dll')
+        table = InterfaceTable('client.dll')
         self.client = table.get_interface('VClient')
         self.entity = table.get_interface('VClientEntityList')
         table = InterfaceTable('engine.dll')
@@ -315,13 +310,14 @@ class NetVarList:
         self.dwEntityList = vt.entity.table - (mem.read_i32(vt.entity.function(5) + 0x22) - 0x38)
         self.dwClientState = mem.read_i32(mem.read_i32(vt.engine.function(18) + 0x16))
         self.dwGetLocalPlayer = mem.read_i32(vt.engine.function(12) + 0x16)
-        self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0xB2)
+        self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0x1D3)
         self.dwMaxClients = mem.read_i32(vt.engine.function(20) + 0x07)
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x07)
         self.dwButton = mem.read_i32(vt.input.function(15) + 0x21D)
-        self.dwGlowObjectManager = mem.find_pattern("client_panorama.dll",
-                                                           b'\xA1\x00\x00\x00\x00\xA8\x01\x75\x4B', "x????xxxx")
-        self.dwGlowObjectManager = mem.read_i32(self.dwGlowObjectManager + 1) + 4
+        if g_glow:
+            self.dwGlowObjectManager = mem.find_pattern("client.dll",
+                    b'\xA1\x00\x00\x00\x00\xA8\x01\x75\x4B', "x????xxxx")
+            self.dwGlowObjectManager = mem.read_i32(self.dwGlowObjectManager + 1) + 4
 
 
 class Player:
@@ -566,7 +562,7 @@ def aim_at_target(sensitivity, va, angle):
     else:
         sx = x
         sy = y
-    if _current_tick - g_previous_tick > 0:
+    if g_current_tick - g_previous_tick > 0:
         g_previous_tick = g_current_tick
         u32.mouse_event(0x0001, int(sx), int(sy), 0, 0)
 
@@ -612,7 +608,7 @@ if __name__ == "__main__":
     print('    m_dwBoneMatrix:     ' + hex(nv.m_dwBoneMatrix))
     print('[*]Info')
     print('    Creator:            github.com/ekknod')
-    previous_tick = 0
+    print('    Websites:           https://ekknod.xyz')
     while mem.is_running() and not InputSystem.is_button_down(g_exit_key):
         k32.Sleep(1)
         if Engine.is_in_game():
@@ -620,9 +616,6 @@ if __name__ == "__main__":
                 self = Entity.get_client_entity(Engine.get_local_player())
                 fl_sensitivity = _sensitivity.get_float()
                 view_angle = Engine.get_view_angles()
-                # weapon_id = self.get_weapon_id()
-                # if weapon_id == 42 or weapon_id == 49:
-                #    continue
                 if g_glow:
                     glow_pointer = mem.read_i32(nv.dwGlowObjectManager)
                     for i in range(0, Engine.get_max_clients()):
@@ -646,9 +639,10 @@ if __name__ == "__main__":
                     cross_target = Entity.get_client_entity(cross_id - 1)
                     if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
                         u32.mouse_event(0x0002, 0, 0, 0, 0)
+                        k32.Sleep(50)
                         u32.mouse_event(0x0004, 0, 0, 0, 0)
                 if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
-                    _current_tick = self.get_tick_count()
+                    g_current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
                         continue
                     aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
@@ -667,3 +661,7 @@ if __name__ == "__main__":
                     g_old_punch = current_punch
             except ValueError:
                 continue
+        else:
+            g_previous_tick = 0
+            target_set(Player(0))
+
