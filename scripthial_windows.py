@@ -540,13 +540,14 @@ def get_best_target(va, local_p):
 
 
 def aimbot(sensitivity, va, angle):
-    def fov(x, y):
+    def out_of_fov(x, y):
         if math.fabs(x) / 180.0 >= AIMBOT_FOV:
             target_set(Player(0))
-            return
+            return True
         if math.fabs(y) / 89.0 >= AIMBOT_FOV:
             target_set(Player(0))
-            return
+            return True
+        return False
     def sense(x, y):
         if AIMBOT_SMOOTH > 1.00:
             x = 1.0 + (x / AIMBOT_SMOOTH) if x > 0.0 else -abs(1.0 - (x / AIMBOT_SMOOTH))
@@ -561,15 +562,14 @@ def aimbot(sensitivity, va, angle):
     elif y < -89.0:
         y = -89.0
     if x > 180.0:
-        x -= 360.0
+        x = -abs(180.0)
     elif x < -180.0:
-        x += 360.0
+        x = abs(180.0)
+    if out_of_fov(x, y):
+        return    
     x = (x / sensitivity) / 0.022
     y = (y / sensitivity) / -0.022
-    
-    fov(x, y)
     x, y = sense(x, y)
-
     if g_current_tick - g_previous_tick > 0:
         g_previous_tick = g_current_tick
         u32.mouse_event(0x0001, int(x), int(y), 0, 0)
