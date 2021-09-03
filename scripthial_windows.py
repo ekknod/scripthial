@@ -1,8 +1,11 @@
 import math
 from ctypes import *
+
+
 ntdll = windll.ntdll
 k32 = windll.kernel32
 u32 = windll.user32
+
 
 GLOW = True
 RCS = True
@@ -10,16 +13,30 @@ AIMBOT = True
 AIMBOT_RCS = True
 AIMBOT_HEAD = True
 AIMBOT_FOV = 25.0 / 180.0
-AIMBOT_SMOOTH = 0.0
-AIMBOT_KEY = 107
+AIMBOT_SMOOTH = 5.0
+AIMBOT_KEY = 81
 TRIGGERBOT_KEY = 111
 EXIT_KEY = 72
+
 
 g_previous_tick = 0
 g_current_tick = 0
 
+
+""" List of Keys
+E               15
+P               26
+Q               27
+W               33
+Alt             81  
+MouseLeft       107
+Mouse_5         111
+"""
+
+
 class Vector3(Structure):
     _fields_ = [('x', c_float), ('y', c_float), ('z', c_float)]
+
 
 class PROCESSENTRY32(Structure):
     _fields_ = [
@@ -34,6 +51,7 @@ class PROCESSENTRY32(Structure):
         ("dwFlags", c_uint32),
         ("szExeFile", c_char * 260)
     ]
+
 
 class Process:
     @staticmethod
@@ -396,7 +414,7 @@ class InputSystem:
     @staticmethod
     def is_button_down(button):
         a0 = mem.read_i32(vt.input.table + ((button >> 5) * 4) + nv.dwButton)
-        return (a0 >> (button & 31)) & 1
+        return (a0 >> (button & 31)) == 1
 
 
 class Math:
@@ -520,47 +538,43 @@ def get_best_target(va, local_p):
                     _target_bone = _bones[j]
     return a0 != 9999
 
-def aimbot(fl_sensitivity, view_angle, self, _target, _target_bone):
-    def aim_at_target(sensitivity, va, angle):
-        global g_current_tick
-        global g_previous_tick
-        y = va.x - angle.x
-        x = va.y - angle.y
-        if y > 89.0:
-            y = 89.0
-        elif y < -89.0:
-            y = -89.0
-        if x > 180.0:
-            x -= 360.0
-        elif x < -180.0:
-            x += 360.0
+
+def aimbot(sensitivity, va, angle):
+    def fov(x, y):
         if math.fabs(x) / 180.0 >= AIMBOT_FOV:
             target_set(Player(0))
             return
         if math.fabs(y) / 89.0 >= AIMBOT_FOV:
             target_set(Player(0))
             return
-        x = (x / sensitivity) / 0.022
-        y = (y / sensitivity) / -0.022
+    def sense(x, y):
         if AIMBOT_SMOOTH > 1.00:
-            sx = 0.00
-            sy = 0.00
-            if sx < x:
-                sx += 1.0 + (x / AIMBOT_SMOOTH)
-            elif sx > x:
-                sx -= 1.0 - (x / AIMBOT_SMOOTH)
-            if sy < y:
-                sy += 1.0 + (y / AIMBOT_SMOOTH)
-            elif sy > y:
-                sy -= 1.0 - (y / AIMBOT_SMOOTH)
-        else:
-            sx = x
-            sy = y
-        if g_current_tick - g_previous_tick > 0:
-            g_previous_tick = g_current_tick
-            u32.mouse_event(0x0001, int(sx), int(sy), 0, 0)
-    aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
+            x = 1.0 + (x / AIMBOT_SMOOTH) if x > 0.0 else -abs(1.0 - (x / AIMBOT_SMOOTH))
+            y = 1.0 + (y / AIMBOT_SMOOTH) if y > 0.0 else -abs(1.0 - (y / AIMBOT_SMOOTH))
+        return x, y     
+    global g_current_tick
+    global g_previous_tick
+    y = va.x - angle.x
+    x = va.y - angle.y
+    if y > 89.0:
+        y = 89.0
+    elif y < -89.0:
+        y = -89.0
+    if x > 180.0:
+        x -= 360.0
+    elif x < -180.0:
+        x += 360.0
+    x = (x / sensitivity) / 0.022
+    y = (y / sensitivity) / -0.022
     
+    fov(x, y)
+    x, y = sense(x, y)
+
+    if g_current_tick - g_previous_tick > 0:
+        g_previous_tick = g_current_tick
+        u32.mouse_event(0x0001, int(x), int(y), 0, 0)
+
+
 def glow(glow_pointer):
     for i in range(0, Engine.get_max_clients()):
         entity = Entity.get_client_entity(i)
@@ -576,7 +590,8 @@ def glow(glow_pointer):
         mem.write_float(glow_pointer + index + 0x14, 0.8)                  # a
         mem.write_i8(glow_pointer + index + 0x28, 1)
         mem.write_i8(glow_pointer + index + 0x29, 0)
-        
+
+    
 def rcs(current_punch, old_punch):
     if self.get_shots_fired() > 1:
         new_punch = Vector3(current_punch.x - old_punch.x,
@@ -587,12 +602,14 @@ def rcs(current_punch, old_punch):
                         int(((new_angle.x - view_angle.x) / fl_sensitivity) / 0.022),
                         0, 0)
     return current_punch
-    
+
+  
 def triggerbot(cross_target):
     if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
         u32.mouse_event(0x0002, 0, 0, 0, 0)
         k32.Sleep(50)
         u32.mouse_event(0x0004, 0, 0, 0, 0)
+
 
 if __name__ == "__main__":
     try:
@@ -631,8 +648,7 @@ if __name__ == "__main__":
     print('    m_iCrossHairID:     ' + hex(nv.m_iCrossHairID))
     print('    m_dwBoneMatrix:     ' + hex(nv.m_dwBoneMatrix))
     print('[*]Info')
-    print('    Creator:            github.com/ekknod')
-    print('    Websites:           https://ekknod.xyz')  
+    print('    Creator:            github.com/ekknod')  
     while mem.is_running() and not InputSystem.is_button_down(EXIT_KEY):
         k32.Sleep(1)
         if Engine.is_in_game():
@@ -652,7 +668,7 @@ if __name__ == "__main__":
                 g_current_tick = self.get_tick_count()
                 if not _target.is_valid() and not get_best_target(view_angle, self):
                     continue
-                aimbot(fl_sensitivity, view_angle, self, _target, _target_bone)
+                aimbot(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
             else:
                 target_set(Player(0))
             if RCS:
