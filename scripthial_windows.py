@@ -1,33 +1,25 @@
-import platform
 import math
 from ctypes import *
 ntdll = windll.ntdll
 k32 = windll.kernel32
 u32 = windll.user32
-#
-# ekknod@2019
-#
 
+GLOW = True
+RCS = True
+AIMBOT = True
+AIMBOT_RCS = True
+AIMBOT_HEAD = True
+AIMBOT_FOV = 25.0 / 180.0
+AIMBOT_SMOOTH = 0.0
+AIMBOT_KEY = 107
+TRIGGERBOT_KEY = 111
+EXIT_KEY = 72
 
-g_glow = True
-g_rcs = True
-g_aimbot = True
-g_aimbot_rcs = True
-g_aimbot_head = False
-g_aimbot_fov = 1.0 / 180.0
-g_aimbot_smooth = 5.0
-g_aimbot_key = 107
-g_triggerbot_key = 111
-g_exit_key = 72
-
-g_old_punch = 0
 g_previous_tick = 0
 g_current_tick = 0
 
-
 class Vector3(Structure):
     _fields_ = [('x', c_float), ('y', c_float), ('z', c_float)]
-
 
 class PROCESSENTRY32(Structure):
     _fields_ = [
@@ -42,7 +34,6 @@ class PROCESSENTRY32(Structure):
         ("dwFlags", c_uint32),
         ("szExeFile", c_char * 260)
     ]
-
 
 class Process:
     @staticmethod
@@ -314,7 +305,7 @@ class NetVarList:
         self.dwMaxClients = mem.read_i32(vt.engine.function(20) + 0x07)
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x07)
         self.dwButton = mem.read_i32(vt.input.function(15) + 0x21D)
-        if g_glow:
+        if GLOW:
             self.dwGlowObjectManager = mem.find_pattern("client.dll",
                     b'\xA1\x00\x00\x00\x00\xA8\x01\x75\x4B', "x????xxxx")
             self.dwGlowObjectManager = mem.read_i32(self.dwGlowObjectManager + 1) + 4
@@ -474,7 +465,10 @@ class Math:
     def get_fov(va, angle):
         a0 = Math.angle_vec(va)
         a1 = Math.angle_vec(angle)
-        return Math.rad2deg(math.acos(Math.vec_dot(a0, a1) / Math.vec_length(a0)))
+        try:
+            return Math.rad2deg(math.acos(Math.vec_dot(a0, a1) / Math.vec_length(a0)))
+        except:
+            return 0
 
 
 def get_target_angle(local_p, target, bone_id):
@@ -484,7 +478,7 @@ def get_target_angle(local_p, target, bone_id):
     c.y = m.y - c.y
     c.z = m.z - c.z
     c = Math.vec_angles(Math.vec_normalize(c))
-    if g_aimbot_rcs and local_p.get_shots_fired() > 1:
+    if AIMBOT_RCS and local_p.get_shots_fired() > 1:
         p = local_p.get_vec_punch()
         c.x -= p.x * 2.0
         c.y -= p.y * 2.0
@@ -511,7 +505,7 @@ def get_best_target(va, local_p):
             continue
         if not mp_teammates_are_enemies.get_int() and local_p.get_team_num() == entity.get_team_num():
             continue
-        if g_aimbot_head:
+        if AIMBOT_HEAD:
             fov = Math.get_fov(va, get_target_angle(local_p, entity, 8))
             if fov < a0:
                 a0 = fov
@@ -526,61 +520,91 @@ def get_best_target(va, local_p):
                     _target_bone = _bones[j]
     return a0 != 9999
 
-
-def aim_at_target(sensitivity, va, angle):
-    global g_current_tick
-    global g_previous_tick
-    y = va.x - angle.x
-    x = va.y - angle.y
-    if y > 89.0:
-        y = 89.0
-    elif y < -89.0:
-        y = -89.0
-    if x > 180.0:
-        x -= 360.0
-    elif x < -180.0:
-        x += 360.0
-    if math.fabs(x) / 180.0 >= g_aimbot_fov:
-        target_set(Player(0))
-        return
-    if math.fabs(y) / 89.0 >= g_aimbot_fov:
-        target_set(Player(0))
-        return
-    x = (x / sensitivity) / 0.022
-    y = (y / sensitivity) / -0.022
-    if g_aimbot_smooth > 1.00:
-        sx = 0.00
-        sy = 0.00
-        if sx < x:
-            sx += 1.0 + (x / g_aimbot_smooth)
-        elif sx > x:
-            sx -= 1.0 - (x / g_aimbot_smooth)
-        if sy < y:
-            sy += 1.0 + (y / g_aimbot_smooth)
-        elif sy > y:
-            sy -= 1.0 - (y / g_aimbot_smooth)
-    else:
-        sx = x
-        sy = y
-    if g_current_tick - g_previous_tick > 0:
-        g_previous_tick = g_current_tick
-        u32.mouse_event(0x0001, int(sx), int(sy), 0, 0)
-
+def aimbot(fl_sensitivity, view_angle, self, _target, _target_bone):
+    def aim_at_target(sensitivity, va, angle):
+        global g_current_tick
+        global g_previous_tick
+        y = va.x - angle.x
+        x = va.y - angle.y
+        if y > 89.0:
+            y = 89.0
+        elif y < -89.0:
+            y = -89.0
+        if x > 180.0:
+            x -= 360.0
+        elif x < -180.0:
+            x += 360.0
+        if math.fabs(x) / 180.0 >= AIMBOT_FOV:
+            target_set(Player(0))
+            return
+        if math.fabs(y) / 89.0 >= AIMBOT_FOV:
+            target_set(Player(0))
+            return
+        x = (x / sensitivity) / 0.022
+        y = (y / sensitivity) / -0.022
+        if AIMBOT_SMOOTH > 1.00:
+            sx = 0.00
+            sy = 0.00
+            if sx < x:
+                sx += 1.0 + (x / AIMBOT_SMOOTH)
+            elif sx > x:
+                sx -= 1.0 - (x / AIMBOT_SMOOTH)
+            if sy < y:
+                sy += 1.0 + (y / AIMBOT_SMOOTH)
+            elif sy > y:
+                sy -= 1.0 - (y / AIMBOT_SMOOTH)
+        else:
+            sx = x
+            sy = y
+        if g_current_tick - g_previous_tick > 0:
+            g_previous_tick = g_current_tick
+            u32.mouse_event(0x0001, int(sx), int(sy), 0, 0)
+    aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
+    
+def glow(glow_pointer):
+    for i in range(0, Engine.get_max_clients()):
+        entity = Entity.get_client_entity(i)
+        if not entity.is_valid():
+            continue
+        if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
+            continue
+        entity_health = entity.get_health() / 100.0
+        index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
+        mem.write_float(glow_pointer + index + 0x08, 0.5)                  # r
+        mem.write_float(glow_pointer + index + 0x0C, 0.5)                  # g
+        mem.write_float(glow_pointer + index + 0x10, 0.8)                  # b
+        mem.write_float(glow_pointer + index + 0x14, 0.8)                  # a
+        mem.write_i8(glow_pointer + index + 0x28, 1)
+        mem.write_i8(glow_pointer + index + 0x29, 0)
+        
+def rcs(current_punch, old_punch):
+    if self.get_shots_fired() > 1:
+        new_punch = Vector3(current_punch.x - old_punch.x,
+                            current_punch.y - old_punch.y, 0)
+        new_angle = Vector3(view_angle.x - new_punch.x * 2.0, view_angle.y - new_punch.y * 2.0, 0)
+        u32.mouse_event(0x0001,
+                        int(((new_angle.y - view_angle.y) / fl_sensitivity) / -0.022),
+                        int(((new_angle.x - view_angle.x) / fl_sensitivity) / 0.022),
+                        0, 0)
+    return current_punch
+    
+def triggerbot(cross_target):
+    if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
+        u32.mouse_event(0x0002, 0, 0, 0, 0)
+        k32.Sleep(50)
+        u32.mouse_event(0x0004, 0, 0, 0, 0)
 
 if __name__ == "__main__":
-    if platform.architecture()[0] != '64bit':
-        print('[!]64bit python required')
-        exit(0)
     try:
         mem = Process('csgo.exe')
         vt = InterfaceList()
         nv = NetVarList()
         _sensitivity = ConVar('sensitivity')
         mp_teammates_are_enemies = ConVar('mp_teammates_are_enemies')
+        old_punch = Entity.get_client_entity(Engine.get_local_player()).get_vec_punch() # rcs
     except Exception as e:
         print(e)
         exit(0)
-
     print('[*]VirtualTables')
     print('    VClient:            ' + hex(vt.client.table))
     print('    VClientEntityList:  ' + hex(vt.entity.table))
@@ -608,59 +632,31 @@ if __name__ == "__main__":
     print('    m_dwBoneMatrix:     ' + hex(nv.m_dwBoneMatrix))
     print('[*]Info')
     print('    Creator:            github.com/ekknod')
-    print('    Websites:           https://ekknod.xyz')
-    while mem.is_running() and not InputSystem.is_button_down(g_exit_key):
+    print('    Websites:           https://ekknod.xyz')  
+    while mem.is_running() and not InputSystem.is_button_down(EXIT_KEY):
         k32.Sleep(1)
         if Engine.is_in_game():
-            try:
-                self = Entity.get_client_entity(Engine.get_local_player())
-                fl_sensitivity = _sensitivity.get_float()
-                view_angle = Engine.get_view_angles()
-                if g_glow:
-                    glow_pointer = mem.read_i32(nv.dwGlowObjectManager)
-                    for i in range(0, Engine.get_max_clients()):
-                        entity = Entity.get_client_entity(i)
-                        if not entity.is_valid():
-                            continue
-                        if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
-                            continue
-                        entity_health = entity.get_health() / 100.0
-                        index = mem.read_i32(entity.address + nv.m_iGlowIndex) * 0x38
-                        mem.write_float(glow_pointer + index + 0x08, 1.0 - entity_health)  # r
-                        mem.write_float(glow_pointer + index + 0x0C, entity_health)        # g
-                        mem.write_float(glow_pointer + index + 0x10, 0.0)                  # b
-                        mem.write_float(glow_pointer + index + 0x14, 0.8)                  # a
-                        mem.write_i8(glow_pointer + index + 0x28, 1)
-                        mem.write_i8(glow_pointer + index + 0x29, 0)
-                if InputSystem.is_button_down(g_triggerbot_key):
-                    cross_id = self.get_cross_index()
-                    if cross_id == 0:
-                        continue
-                    cross_target = Entity.get_client_entity(cross_id - 1)
-                    if self.get_team_num() != cross_target.get_team_num() and cross_target.get_health() > 0:
-                        u32.mouse_event(0x0002, 0, 0, 0, 0)
-                        k32.Sleep(50)
-                        u32.mouse_event(0x0004, 0, 0, 0, 0)
-                if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
-                    g_current_tick = self.get_tick_count()
-                    if not _target.is_valid() and not get_best_target(view_angle, self):
-                        continue
-                    aim_at_target(fl_sensitivity, view_angle, get_target_angle(self, _target, _target_bone))
-                else:
-                    target_set(Player(0))
-                if g_rcs:
-                    current_punch = self.get_vec_punch()
-                    if self.get_shots_fired() > 1:
-                        new_punch = Vector3(current_punch.x - g_old_punch.x,
-                                            current_punch.y - g_old_punch.y, 0)
-                        new_angle = Vector3(view_angle.x - new_punch.x * 2.0, view_angle.y - new_punch.y * 2.0, 0)
-                        u32.mouse_event(0x0001,
-                                        int(((new_angle.y - view_angle.y) / fl_sensitivity) / -0.022),
-                                        int(((new_angle.x - view_angle.x) / fl_sensitivity) / 0.022),
-                                        0, 0)
-                    g_old_punch = current_punch
-            except ValueError:
-                continue
+            self = Entity.get_client_entity(Engine.get_local_player())
+            fl_sensitivity = _sensitivity.get_float()
+            view_angle = Engine.get_view_angles()
+            if GLOW:
+                glow_pointer = mem.read_i32(nv.dwGlowObjectManager)
+                glow(glow_pointer)
+            if InputSystem.is_button_down(TRIGGERBOT_KEY):
+                cross_id = self.get_cross_index()
+                if cross_id == 0:
+                    continue
+                cross_target = Entity.get_client_entity(cross_id - 1)
+                triggerbot(cross_target)
+            if AIMBOT and InputSystem.is_button_down(AIMBOT_KEY):
+                g_current_tick = self.get_tick_count()
+                if not _target.is_valid() and not get_best_target(view_angle, self):
+                    continue
+                aimbot(fl_sensitivity, view_angle, self, _target, _target_bone)
+            else:
+                target_set(Player(0))
+            if RCS:
+                old_punch = rcs(self.get_vec_punch(), old_punch)
         else:
             g_previous_tick = 0
             target_set(Player(0))
