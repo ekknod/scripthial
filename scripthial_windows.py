@@ -5,6 +5,7 @@ ntdll = windll.ntdll
 k32 = windll.kernel32
 u32 = windll.user32
 
+BHOP = True
 GLOW = True
 RCS = True
 AIMBOT = True
@@ -24,6 +25,7 @@ E               15
 P               26
 Q               27
 W               33
+Space           65
 Alt             81  
 MouseLeft       107
 Mouse_5         111
@@ -566,6 +568,7 @@ def aimbot(sensitivity, va, angle):
         g_previous_tick = g_current_tick
         u32.mouse_event(0x0001, int(x), int(y), 0, 0)
 
+
 class Glow:
     def __init__(self):
         glow_pointer = mem.find_pattern("client.dll", b'\xA1\x00\x00\x00\x00\xA8\x01\x75\x4B', "x????xxxx")
@@ -600,12 +603,29 @@ def rcs(current_punch, old_punch):
                         0, 0)
     return current_punch
 
-  
+
 def triggerbot(cross_target):
     if local_player.get_team_num() != cross_target.get_team_num() and cross_target.is_valid():
         u32.mouse_event(0x0002, 0, 0, 0, 0)
         k32.Sleep(50)
         u32.mouse_event(0x0004, 0, 0, 0, 0)
+
+
+def bhop():
+    dwForceJump = (86298588)
+    dwLocalPlayer = (14197468)
+    m_fFlags = (260)
+    #pm = pymem.Pymem("csgo.exe")
+    #c = pymem.process.module_from_name(pm.process_handle, "client.dll").lpBaseOfDll # 1454833664
+    c = 1454833664
+    force_jump = c + dwForceJump
+    player = mem.read_i32(c + dwLocalPlayer)
+    if player:
+        on_ground = mem.read_i32(player + m_fFlags)
+        if on_ground and on_ground == 257:
+            mem.write_i8(force_jump, 5)
+            k32.Sleep(1)
+            mem.write_i8(force_jump, 4)
 
 
 if __name__ == "__main__":
@@ -670,7 +690,8 @@ if __name__ == "__main__":
                 target_set(Player(0))
             if RCS:
                 old_punch = rcs(local_player.get_vec_punch(), old_punch)
+            if BHOP and InputSystem.is_button_down(65):
+                bhop()
         else:
             g_previous_tick = 0
             target_set(Player(0))
-
