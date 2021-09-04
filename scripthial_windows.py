@@ -576,7 +576,7 @@ class Glow:
         glow_pointer = mem.read_i32(glow_pointer + 1) + 4
         self.glow_pointer = mem.read_i32(glow_pointer)
     
-    def update(self):
+    def update(self, red, green, blue):
         for i in range(0, Engine.get_max_clients()):
             entity = Entity.get_client_entity(i)
             if not entity.is_valid():
@@ -585,9 +585,9 @@ class Glow:
                 continue
             entity_health = entity.get_health() / 100.0
             index = mem.read_i32(entity.address + 42040) * 0x38
-            mem.write_float(self.glow_pointer + index + 0x08, 0.5)                  # r
-            mem.write_float(self.glow_pointer + index + 0x0C, 0.5)                  # g
-            mem.write_float(self.glow_pointer + index + 0x10, 0.8)                  # b
+            mem.write_float(self.glow_pointer + index + 0x08, red / 255)            # r
+            mem.write_float(self.glow_pointer + index + 0x0C, green / 255)          # g
+            mem.write_float(self.glow_pointer + index + 0x10, blue / 255)           # b
             mem.write_float(self.glow_pointer + index + 0x14, 0.8)                  # a
             mem.write_i8(self.glow_pointer + index + 0x28, 1)
             mem.write_i8(self.glow_pointer + index + 0x29, 0)
@@ -681,7 +681,7 @@ if __name__ == "__main__":
             view_angle = Engine.get_view_angles()
             sensitivity = _sensitivity.get_float()
             if GLOW:
-                glow.update()
+                glow.update(100,100,200)
             triggerbot()
             if AIMBOT:
                 aimbot.update()
