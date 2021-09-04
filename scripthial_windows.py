@@ -1,5 +1,5 @@
 import math
-from ctypes import *
+from ctypes import windll, Structure, c_int32, c_uint8, c_float, c_uint32, c_uint64, c_char, sizeof, pointer, create_unicode_buffer, c_uint16, create_string_buffer, c_long
 
 ntdll = windll.ntdll
 k32 = windll.kernel32
@@ -16,9 +16,6 @@ AIMBOT_SMOOTH = 0.0
 AIMBOT_KEY = 81
 TRIGGERBOT_KEY = 111
 EXIT_KEY = 72
-
-g_previous_tick = 0
-g_current_tick = 0
 
 """ List of Keys
 E               15
@@ -483,90 +480,94 @@ class Math:
             return 0
 
 
-def get_target_angle(local_p, target, bone_id):
-    m = target.get_bone_pos(bone_id)
-    c = local_p.get_eye_pos()
-    c.x = m.x - c.x
-    c.y = m.y - c.y
-    c.z = m.z - c.z
-    c = Math.vec_angles(Math.vec_normalize(c))
-    if AIMBOT_RCS and local_p.get_shots_fired() > 1:
-        p = local_p.get_vec_punch()
-        c.x -= p.x * 2.0
-        c.y -= p.y * 2.0
-        c.z -= p.z * 2.0
-    return Math.vec_clamp(c)
-
-
-_target = Player(0)
-_target_bone = 0
-_bones = [5, 4, 3, 0, 7, 8]
-
-
-def target_set(target):
-    global _target
-    _target = target
-
-
-def get_best_target(va, local_p):
-    global _target_bone
-    a0 = 9999.9
-    for i in range(1, Engine.get_max_clients()):
-        entity = Entity.get_client_entity(i)
-        if not entity.is_valid():
-            continue
-        if not mp_teammates_are_enemies.get_int() and local_p.get_team_num() == entity.get_team_num():
-            continue
-        if AIMBOT_HEAD:
-            fov = Math.get_fov(va, get_target_angle(local_p, entity, 8))
-            if fov < a0:
-                a0 = fov
-                target_set(entity)
-                _target_bone = 8
-        else:
-            for j in range(0, _bones.__len__()):
-                fov = Math.get_fov(va, get_target_angle(local_p, entity, _bones[j]))
-                if fov < a0:
-                    a0 = fov
-                    target_set(entity)
-                    _target_bone = _bones[j]
-    return a0 != 9999
-
-
-def aimbot(sensitivity, va, angle):
-    def out_of_fov(x, y):
+class Aimbot:
+    previous_tick = 0
+    _target = Player(0)
+    _target_bone = 0
+    _bones = [5, 4, 3, 0, 7, 8]
+    
+    def target_set(self, target):
+        self._target = target
+    
+    def out_of_fov(self, x, y):
         if math.fabs(x) / 180.0 >= AIMBOT_FOV:
-            target_set(Player(0))
+            self.target_set(Player(0))
             return True
         if math.fabs(y) / 89.0 >= AIMBOT_FOV:
-            target_set(Player(0))
+            self.target_set(Player(0))
             return True
         return False
-    def sense(x, y):
+        
+    def sense(self, x, y):
         if AIMBOT_SMOOTH > 1.00:
             x = 1.0 + (x / AIMBOT_SMOOTH) if x > 0.0 else -abs(1.0 - (x / AIMBOT_SMOOTH))
             y = 1.0 + (y / AIMBOT_SMOOTH) if y > 0.0 else -abs(1.0 - (y / AIMBOT_SMOOTH))
-        return x, y     
-    global g_current_tick
-    global g_previous_tick
-    y = va.x - angle.x
-    x = va.y - angle.y
-    if y > 89.0:
-        y = 89.0
-    elif y < -89.0:
-        y = -89.0
-    if x > 180.0:
-        x = -abs(180.0)
-    elif x < -180.0:
-        x = abs(180.0)
-    if out_of_fov(x, y):
-        return    
-    x = (x / sensitivity) / 0.022
-    y = (y / sensitivity) / -0.022
-    x, y = sense(x, y)
-    if g_current_tick - g_previous_tick > 0:
-        g_previous_tick = g_current_tick
-        u32.mouse_event(0x0001, int(x), int(y), 0, 0)
+        return x, y   
+        
+    def get_target_angle(self, local_p, target, bone_id):
+        m = target.get_bone_pos(bone_id)
+        c = local_p.get_eye_pos()
+        c.x = m.x - c.x
+        c.y = m.y - c.y
+        c.z = m.z - c.z
+        c = Math.vec_angles(Math.vec_normalize(c))
+        if AIMBOT_RCS and local_p.get_shots_fired() > 1:
+            p = local_p.get_vec_punch()
+            c.x -= p.x * 2.0
+            c.y -= p.y * 2.0
+            c.z -= p.z * 2.0
+        return Math.vec_clamp(c)
+        
+    def get_best_target(self, va, local_p):
+        a0 = 9999.9
+        for i in range(1, Engine.get_max_clients()):
+            entity = Entity.get_client_entity(i)
+            if not entity.is_valid():
+                continue
+            if not mp_teammates_are_enemies.get_int() and local_p.get_team_num() == entity.get_team_num():
+                continue
+            if AIMBOT_HEAD:
+                fov = Math.get_fov(va, self.get_target_angle(local_p, entity, 8))
+                if fov < a0:
+                    a0 = fov
+                    self.target_set(entity)
+                    self._target_bone = 8
+            else:
+                for j in range(0, self._bones.__len__()):
+                    fov = Math.get_fov(va, self.get_target_angle(local_p, entity, self._bones[j]))
+                    if fov < a0:
+                        a0 = fov
+                        self.target_set(entity)
+                        self._target_bone = _bones[j]
+        return a0 != 9999
+        
+    def update(self):
+        if InputSystem.is_button_down(AIMBOT_KEY):
+            if not self._target.is_valid() and not self.get_best_target(view_angle, local_player):
+                return
+            va = view_angle
+            angle = self.get_target_angle(local_player, self._target, self._target_bone)
+            y = va.x - angle.x
+            x = va.y - angle.y
+            if y > 89.0:
+                y = 89.0
+            elif y < -89.0:
+                y = -89.0
+            if x > 180.0:
+                x = -abs(180.0)
+            elif x < -180.0:
+                x = abs(180.0)
+            if self.out_of_fov(x, y):
+                return    
+            x = (x / sensitivity) / 0.022
+            y = (y / sensitivity) / -0.022
+            x, y = self.sense(x, y)
+            current_tick = local_player.get_tick_count()
+            if current_tick - self.previous_tick > 0:
+                u32.mouse_event(0x0001, int(x), int(y), 0, 0)
+            self.previous_tick = current_tick
+        else:
+            self.target_set(Player(0))
 
 
 class Glow:
@@ -598,17 +599,22 @@ def rcs(current_punch, old_punch):
                             current_punch.y - old_punch.y, 0)
         new_angle = Vector3(view_angle.x - new_punch.x * 2.0, view_angle.y - new_punch.y * 2.0, 0)
         u32.mouse_event(0x0001,
-                        int(((new_angle.y - view_angle.y) / fl_sensitivity) / -0.022),
-                        int(((new_angle.x - view_angle.x) / fl_sensitivity) / 0.022),
+                        int(((new_angle.y - view_angle.y) / sensitivity) / -0.022),
+                        int(((new_angle.x - view_angle.x) / sensitivity) / 0.022),
                         0, 0)
     return current_punch
 
 
-def triggerbot(cross_target):
-    if local_player.get_team_num() != cross_target.get_team_num() and cross_target.is_valid():
-        u32.mouse_event(0x0002, 0, 0, 0, 0)
-        k32.Sleep(50)
-        u32.mouse_event(0x0004, 0, 0, 0, 0)
+def triggerbot():
+    if InputSystem.is_button_down(TRIGGERBOT_KEY):
+        cross_id = local_player.get_cross_index()
+        #if cross_id == 0:
+        #    continue
+        cross_target = Entity.get_client_entity(cross_id - 1)
+        if local_player.get_team_num() != cross_target.get_team_num() and cross_target.is_valid():
+            u32.mouse_event(0x0002, 0, 0, 0, 0)
+            k32.Sleep(50)
+            u32.mouse_event(0x0004, 0, 0, 0, 0)
 
 
 def bhop():
@@ -637,6 +643,7 @@ if __name__ == "__main__":
         mp_teammates_are_enemies = ConVar('mp_teammates_are_enemies')
         old_punch = Entity.get_client_entity(Engine.get_local_player()).get_vec_punch() # rcs
         glow = Glow()
+        aimbot = Aimbot()
     except Exception as e:
         print(e)
         exit(0)
@@ -671,27 +678,14 @@ if __name__ == "__main__":
         k32.Sleep(1)
         if Engine.is_in_game():
             local_player = Entity.get_client_entity(Engine.get_local_player())
-            fl_sensitivity = _sensitivity.get_float()
             view_angle = Engine.get_view_angles()
+            sensitivity = _sensitivity.get_float()
             if GLOW:
                 glow.update()
-            if InputSystem.is_button_down(TRIGGERBOT_KEY):
-                cross_id = local_player.get_cross_index()
-                #if cross_id == 0:
-                #    continue
-                cross_target = Entity.get_client_entity(cross_id - 1)
-                triggerbot(cross_target)
-            if AIMBOT and InputSystem.is_button_down(AIMBOT_KEY):
-                g_current_tick = local_player.get_tick_count()
-                if not _target.is_valid() and not get_best_target(view_angle, local_player):
-                    continue
-                aimbot(fl_sensitivity, view_angle, get_target_angle(local_player, _target, _target_bone))
-            else:
-                target_set(Player(0))
+            triggerbot()
+            if AIMBOT:
+                aimbot.update()
             if RCS:
                 old_punch = rcs(local_player.get_vec_punch(), old_punch)
             if BHOP and InputSystem.is_button_down(65):
                 bhop()
-        else:
-            g_previous_tick = 0
-            target_set(Player(0))
