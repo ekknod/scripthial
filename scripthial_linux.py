@@ -7,9 +7,8 @@ libc = CDLL("libc.so.6")
 #
 
 
-g_horizontal_only = True
-g_glow = True
-g_rcs = True
+g_horizontal_only = False
+g_rcs = False
 g_aimbot = True
 g_aimbot_rcs = True
 g_aimbot_head = False
@@ -182,7 +181,7 @@ class Process:
         raise Exception("[!]Process::find_pattern")
 
     def read_i8(self, address, length=1):
-        buffer = c_int8()
+        buffer = c_uint8()
         libc.pread(self.handle, pointer(buffer), length, c_long(address))
         return buffer.value
 
@@ -372,29 +371,25 @@ class NetVarList:
         table = NetVarTable("DT_CSPlayer")
         self.m_hActiveWeapon = table.get_offset("m_hActiveWeapon")
         self.m_iShotsFired = table.get_offset("m_iShotsFired")
-        self.m_iCrossHairID = table.get_offset("m_bHasDefuser") + 0x7C
+        self.m_iCrossHairID = table.get_offset("m_bHasDefuser") + 0x78
         table = NetVarTable("DT_BaseAnimating")
         self.m_dwBoneMatrix = table.get_offset("m_nForceBone") + 0x2C
         table = NetVarTable("DT_BaseAttributableItem")
         self.m_iItemDefinitionIndex = table.get_offset("m_iItemDefinitionIndex")
+
         self.entityList = self.__get_entity_list()
         self.clientState = self.__get_client_state()
         self.getLocalPlayer = mem.read_i32(vt.engine.function(12) + 0x11)
-        self.dwViewAngles = mem.read_i32(vt.engine.function(18) + 0x18)
+        self.dwViewAngles = mem.read_i32(vt.engine.function(18) + 0x1A)
+
+
+
         self.dwMaxClients = mem.read_i32(vt.engine.function(20) + 0x0C)
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x0C)
         self.dwButton = mem.read_i32(vt.input.function(15) + 0x19)
         self.dwInput = mem.read_absolute(vt.client.function(16), 3, 7)
         self.dwInput = mem.read_i64(mem.read_i64(self.dwInput))
         self.dwLastCommand = 0x8E34
-        if g_glow:
-            # 0x6A5C30 = hardcoded relocation end
-            temp = mem.find_pattern(0x6A5C30, "client_client.so",
-                b"\xE8\x00\x00\x00\x00\x48\x8B\x3D\x00\x00\x00\x00\xBE\x01\x00\x00\x00\xC7",
-                "x????xxx????xxxxxx")
-            temp = mem.read_absolute(temp, 1, 5)
-            self.dwGlowObjectManager = mem.read_absolute(temp + 0x0B, 1, 5)
-            self.dwGlowPointer = mem.read_i64(self.dwGlowObjectManager)
 
 
 class Player:
@@ -648,6 +643,8 @@ def aim_at_target(sensitivity, va, angle):
 
 def get_crosshair_target(player):
     cross_id = player.get_cross_index()
+    # print("cross id: ", cross_id)
+
     if cross_id == 0:
         return False
     cross_target = Entity.get_client_entity(cross_id)
@@ -708,24 +705,10 @@ if __name__ == "__main__":
                 self = Entity.get_client_entity(Engine.get_local_player())
                 fl_sensitivity = _sensitivity.get_float()
                 view_angle = Engine.get_view_angles()
-                if g_glow:
-                    for i in range(0, mem.read_i32(nv.dwGlowObjectManager + 0x10)):
-                        index = 0x40 * i
-                        entity = Player(mem.read_i64(nv.dwGlowPointer + index))
-                        if not entity.is_valid():
-                            continue
-                        if not mp_teammates_are_enemies.get_int() and self.get_team_num() == entity.get_team_num():
-                            continue
-                        entity_health = entity.get_health() / 100.0
-                        mem.write_float(nv.dwGlowPointer + index + 0x08, 1.0 - entity_health)  # r
-                        mem.write_float(nv.dwGlowPointer + index + 0x0C, entity_health)        # g
-                        mem.write_float(nv.dwGlowPointer + index + 0x10, 1.0)                  # b
-                        mem.write_float(nv.dwGlowPointer + index + 0x14, 0.5)                  # a
-                        mem.write_i8(nv.dwGlowPointer + index + 0x28, 1)
-                        mem.write_i8(nv.dwGlowPointer + index + 0x29, 0)
+                
                 if InputSystem.is_button_down(g_triggerbot_key) and get_crosshair_target(self):
                     mouse.click()
-                if g_aimbot and InputSystem.is_button_down(g_aimbot_key):
+                if g_aimbot and ( InputSystem.is_button_down(g_aimbot_key) or InputSystem.is_button_down(g_triggerbot_key) ):
                     g_current_tick = self.get_tick_count()
                     if not _target.is_valid() and not get_best_target(view_angle, self):
                         continue
