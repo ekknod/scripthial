@@ -310,7 +310,7 @@ class NetVarList:
         self.dwEntityList = vt.entity.table - (mem.read_i32(vt.entity.function(6) + 0x22) - 0x38)
         self.dwClientState = mem.read_i32(mem.read_i32(vt.engine.function(18) + 0x21))
         self.dwGetLocalPlayer = mem.read_i32(vt.engine.function(12) + 0x16)
-        self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0x1D3)
+        self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0x191)
         self.dwMaxClients = mem.read_i32(vt.engine.function(20) + 0x07)
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x07)
         self.dwButton = mem.read_i32(vt.input.function(15) + 0x21D)
