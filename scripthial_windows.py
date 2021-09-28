@@ -68,7 +68,7 @@ class Process:
             if ntdll.NtQueryInformationProcess(handle, 0, pointer(buffer), 48, 0) == 0:
                 return buffer[1]
         return 0
-    
+
     def __init__(self, name):
         self.mem = self.get_process_handle(name)
         if self.mem == 0:
@@ -307,10 +307,10 @@ class NetVarList:
         table = NetVarTable('DT_BaseAttributableItem')
         self.m_iItemDefinitionIndex = table.get_offset('m_iItemDefinitionIndex')
 
-        self.dwEntityList = vt.entity.table - (mem.read_i32(vt.entity.function(5) + 0x22) - 0x38)
-        self.dwClientState = mem.read_i32(mem.read_i32(vt.engine.function(18) + 0x16))
+        self.dwEntityList = vt.entity.table - (mem.read_i32(vt.entity.function(6) + 0x22) - 0x38)
+        self.dwClientState = mem.read_i32(mem.read_i32(vt.engine.function(18) + 0x21))
         self.dwGetLocalPlayer = mem.read_i32(vt.engine.function(12) + 0x16)
-        self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0x1D3)
+        self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0x191)
         self.dwMaxClients = mem.read_i32(vt.engine.function(20) + 0x07)
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x07)
         self.dwButton = mem.read_i32(vt.input.function(15) + 0x21D)
