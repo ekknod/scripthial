@@ -313,7 +313,7 @@ class NetVarList:
         self.dwViewAngles = mem.read_i32(vt.engine.function(19) + 0x191)
         self.dwMaxClients = mem.read_i32(vt.engine.function(20) + 0x07)
         self.dwState = mem.read_i32(vt.engine.function(26) + 0x07)
-        self.dwButton = mem.read_i32(vt.input.function(15) + 0x21D)
+        self.dwButton = mem.read_i32(vt.input.function(15) + 0x1B)
         if g_glow:
             self.dwGlowObjectManager = mem.find_pattern("client.dll",
                     b'\xA1\x00\x00\x00\x00\xA8\x01\x75\x4B', "x????xxxx")
